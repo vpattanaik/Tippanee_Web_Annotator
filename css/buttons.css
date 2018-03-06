@@ -1,0 +1,104 @@
+.weaver-button,
+.linker-button {
+    display: inline-block;
+    zoom: 1;
+    line-height: normal;
+    white-space: nowrap;
+    vertical-align: middle;
+    text-align: center;
+    cursor: pointer;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+       -moz-user-select: none;
+        -ms-user-select: none;
+            user-select: none;
+    box-sizing: border-box;
+}
+
+.weaver-button::-moz-focus-inner,
+.linker-button::-moz-focus-inner {
+    padding: 0;
+    border: 0;
+}
+
+.weaver-button,
+.linker-button {
+    letter-spacing: normal;
+    word-spacing: normal;
+    text-rendering: auto;
+}
+
+.weaver-button,
+.linker-button {
+    font-family: inherit;
+    font-size: 16px !important;
+    height: 24px;
+    width: 24px;
+    padding: 4px;
+    color: #000000;  /* rgba supported */
+    border: none rgba(0, 0, 0, 0);  /*IE9 + everything else*/
+    background-color: inherit;
+    text-decoration: none;
+    border-radius: 2px;
+    margin: 0 2px 2px 2px;
+}
+
+.weaver-button {
+    float: right;
+}
+
+.linker-button {
+    float: left;
+}
+
+.weaver-button:hover,
+.weaver-button:focus,
+.weaver-button.active {
+    /* csslint ignore:start */
+    filter: alpha(opacity=90);
+    /* csslint ignore:end */
+    color: #4891d9; /* rgba supported */
+    background-color: #ffffff;
+}
+
+.linker-button:hover,
+.linker-button:focus,
+.linker-button.active {
+    /* csslint ignore:start */
+    filter: alpha(opacity=90);
+    /* csslint ignore:end */
+    color: #797963; /* rgba supported */
+    background-color: #ffffff;
+}
+
+.weaver-button:focus,
+.linker-button:focus {
+    outline: 0;
+}
+
+.weaver-button:active,
+.linker-button:active {
+    box-shadow: 0 0 0 1px rgba(0,0,0, 0.15) inset, 0 0 6px rgba(0,0,0, 0.20) inset;
+    border-color: #753E3E;
+}
+
+.weaver-button[disabled],
+.weaver-button-disabled,
+.weaver-button-disabled:hover,
+.weaver-button-disabled:focus,
+.weaver-button-disabled:active,
+.linker-button[disabled],
+.linker-button-disabled,
+.linker-button-disabled:hover,
+.linker-button-disabled:focus,
+.linker-button-disabled:active {
+    border: none;
+    background-image: none;
+    /* csslint ignore:start */
+    filter: alpha(opacity=40);
+    /* csslint ignore:end */
+    opacity: 0.40;
+    cursor: not-allowed;
+    box-shadow: none;
+    pointer-events: none;
+}
