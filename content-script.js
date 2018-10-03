@@ -2,7 +2,7 @@
 var allnotes = {};
 var aNotesonpage = {};
 var oNotesonpage = {};
-var loaded = false;
+var duppANOP = {};
 var wselectedanchor = {};
 var wselectedtext;
 var wselectedelement;
@@ -25,40 +25,62 @@ $("a").on("click", function (e) {
 });
 
 // Listener function will be called when a tab is updated
-chrome.runtime.onMessage.addListener(function (msg, sender) {
-    if (msg === "clear-tipp") { // Request to clear Tippanee
-        $("body").children("#weaver-bubble").remove(); // Remove Tippanee bubble
-        $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
+chrome.runtime.onMessage.addListener(function (message, sender) {
 
-        // Remove highlighted annotations
-        Object.keys(aNotesonpage).forEach(function (key) {
-            $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
-        });
+    switch (message) {
+        case "clear-tipp":
+            // Request to clear Tippanee
+            $("body").children("#weaver-bubble").remove(); // Remove Tippanee bubble
+            $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
 
-        var data = {
-            text: "" // NULLify annotation count
-        };
+            // Remove highlighted annotations
+            Object.keys(aNotesonpage).forEach(function (key) {
+                $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
+            });
 
-        chrome.runtime.sendMessage({ // Send message to background.js
-            type: "updateBadge",
-            data: data
-        });
-    }
+            aNotesonpage = {};
+            oNotesonpage = {};
+            duppANOP = {};
 
-    if (msg === "render-tipp") { // Request to render Tippanee
-        addBubble(function () {
-            renderDash();
-        });
-        // Adds Tippanee bubble into webpage DOM 'THEN'
-        // Adds Tippanee dash into webpage DOM
-    }
-});
+            //console.log("clear-tipp Complete");
+            break;
 
-// Listener function will be called when a tab is updated
-chrome.runtime.onMessage.addListener(function (msg, sender) {
-    if (msg === "tab-actvtd") {
-        calcAnnCntOnPg();
-        //console.log("Tab Activated");
+        case "render-tipp":
+            // Request to render Tippanee
+            addBubble(function () {
+                renderDash();
+            });
+            // Adds Tippanee bubble into webpage DOM 'THEN'
+            // Adds Tippanee dash into webpage DOM
+            //console.log("render-tipp Complete");
+            break;
+
+        case "update-tipp":
+            // Remove highlighted annotations
+            Object.keys(aNotesonpage).forEach(function (key) {
+                $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
+            });
+
+            aNotesonpage = {};
+            oNotesonpage = {};
+            duppANOP = {};
+
+            $('.transcludor-viewer').remove();
+
+            renderOldNotes();
+
+            //console.log("update-tipp Complete");
+            break;
+
+        case "tab-actvtd":
+            // Called when a tab is activated
+            calcAnnCntOnPg();
+            //console.log("tab Activated");
+            break;
+
+        default:
+            //console.log("Unrecognized message type: " + message.type);
+            break;
     }
 });
 
@@ -84,8 +106,10 @@ function calcAnnCntOnPg() {
 // Bubble Functions///////////////////////////////////////////////////////////////////////////////
 // Add bubble to website DOM
 function addBubble(callback) {
+    $("body").children("#weaver-bubble").remove(); // Remove Tippanee bubble
+
     // Add bubble to the top of the page.
-    var $bubbleDOM = $("<div id='weaver-bubble'><div id='weaver32' title='Add to WebWeaver'></div></div>");
+    var $bubbleDOM = $("<div id='weaver-bubble'><div id='weaver32' title='Add to Tippanee'></div></div>");
     $("body").append($bubbleDOM);
 
     // Listens to mouseup DOM events.
@@ -150,9 +174,13 @@ function renderBubble(wselection, X, Y) {
     if (wselection.anchorNode === wselection.focusNode) {
         wselectedanchor.oneNode = true;
         if (backwards) {
-            wselectedanchor.endOffset = wselection.anchorNode.nodeValue.length - wselection.anchorOffset;
+            try {
+                wselectedanchor.endOffset = wselection.anchorNode.nodeValue.length - wselection.anchorOffset;
+            } catch (e) {}
         } else {
-            wselectedanchor.endOffset = wselection.focusNode.nodeValue.length - wselection.focusOffset;
+            try {
+                wselectedanchor.endOffset = wselection.focusNode.nodeValue.length - wselection.focusOffset;
+            } catch (e) {}
         }
     } else {
         wselectedanchor.oneNode = false;
@@ -184,235 +212,410 @@ function bubbleClick(elem) {
 // Dashboard Functions////////////////////////////////////////////////////////////////////////////
 // Renders the Tippanee dashboard
 function renderDash() {
+    $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
+    $("body").append($.templates.dashDOM.render());
 
-    if (loaded === false) {
-        loaded = true;
+    // Event button for arrow button on dashboard
+    $("#warrow").on("click", function () {
+        $("#warrow").toggleClass('ww-angle-right ww-angle-left');
+        $("#weaver-dash").toggleClass('weaver-dash-max weaver-dash-min');
+        //$("#weaver-toolbar").toggle();
+    });
 
-        $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
-        $("body").append($.templates.dashDOM.render());
+    // Event button for web of data on dashboard
+    $("#wweboanch").on("click", function () {
+        $("#wweboanch").toggleClass('wlight wdark');
+        renderWeboanch();
+    });
 
-        // Event button for arrow button on dashboard
-        $("#warrow").on("click", function () {
-            $("#warrow").toggleClass('ww-angle-right ww-angle-left');
-            $("#weaver-dash").toggleClass('weaver-dash-max weaver-dash-min');
-            //$("#weaver-toolbar").toggle();
-        });
+    // Event button for target on dashboard
+    $("#wtarget").on("click", function () {
+        $("#wtarget").toggleClass('wlight wdark');
+        targetElement();
+    });
 
-        // Event button for web of data on dashboard
-        $("#wwebodata").on("click", function () {
-            $("#wwebodata").toggleClass('wlight wdark');
-            renderWebodata();
-        });
-
-        // Event button for target on dashboard
-        $("#wtarget").on("click", function () {
-            $("#wtarget").toggleClass('wlight wdark');
-            targetElement();
-        });
-
-        // Event button for search on dashboard
-        $("#wsearch").on("click", function () {
-            $("#wsearch").toggleClass('wlight wdark');
-            if ($("#weaverSrcBar").css("visibility") === 'hidden') { // If search bar is hidden
-                $("#weaverSrcBar").css("visibility", "visible"); // Change visibility of search bar to visible
-                $("#weaverSrcBar").focus(); // Focus on search bar
-            } else { // If search bar is visible
-                $("#weaverSrcBar").css("visibility", "hidden"); // Change visibility of search bar to hidden
-                $("#weaverSrcBar")[0].value = ''; // NULLify search bar value
+    // Event button for search on dashboard
+    $("#wsearch").on("click", function () {
+        $("#wsearch").toggleClass('wlight wdark');
+        if ($("#weaverSrcBar").css("visibility") === 'hidden') { // If search bar is hidden
+            $("#weaverSrcBar").css("visibility", "visible"); // Change visibility of search bar to visible
+            $("#weaverSrcBar").focus(); // Focus on search bar
+        } else { // If search bar is visible
+            $("#weaverSrcBar").css("visibility", "hidden"); // Change visibility of search bar to hidden
+            $("#weaverSrcBar")[0].value = ''; // NULLify search bar value
 
 
-                var selTabValue = $(".wtablinks.active")[0].id;
+            var selTabValue = $(".wtablinks.active")[0].id;
 
-                if (selTabValue === "wanchTab") {
-                    $.each($(".note-dom"), function (index, value) {
-                        $("#" + value.id + ".note-dom").show();
-                    });
-                } else if (selTabValue === "wbrowTab") {
-                    $.each($(".browser-container"), function (index, value) {
-                        $("#" + value.id + ".browser-container").show();
-                    });
-                }
-            }
-        });
-
-        // Event keypress for search bar on dashboard
-        $("#weaverSrcBar").keypress(function (event) {
-            if (event.keyCode === 13) {
-                event.preventDefault(); // Prevents 'enter' from being registered
-                //alert("Searching for " + $("#weaverSrcBar")[0].value);
-
-                var selTabValue = $(".wtablinks.active")[0].id;
-
-                if (selTabValue === "wanchTab") {
-                    srcOptAt(); // Search output for anchor tab
-                } else if (selTabValue === "wbrowTab") {
-                    srcOptBt(); // Search output for archive tab
-                }
-            }
-        });
-
-        // Generate search output for anchor tab
-        function srcOptAt() {
-            var srcTxt = $("#weaverSrcBar")[0].value.toUpperCase();
-            var inrTxt = "";
-            $.each($(".note-dom"), function (index, value) {
-                inrTxt = $("#" + value.id + ".note-dom").text().toUpperCase();
-
-                if (inrTxt.includes(srcTxt) === false) {
-                    $("#" + value.id + ".note-dom").hide();
-                } else {
+            if (selTabValue === "wanchTab") {
+                $.each($(".note-dom"), function (index, value) {
                     $("#" + value.id + ".note-dom").show();
-                }
-            });
-        }
-
-        // Generate search output for archive tab
-        function srcOptBt() {
-            var srcTxt = $("#weaverSrcBar")[0].value.toUpperCase();
-            var inrTxt = "";
-            $.each($(".browser-container"), function (index, value) {
-                inrTxt = $("#" + value.id + ".browser-container").text().toUpperCase();
-
-                if (inrTxt.includes(srcTxt) === false) {
-                    $("#" + value.id + ".browser-container").hide();
-                } else {
+                });
+            } else if (selTabValue === "wbrowTab") {
+                $.each($(".browser-container"), function (index, value) {
                     $("#" + value.id + ".browser-container").show();
-                }
-            });
+                });
+            }
         }
+    });
 
-        // Event for Annotations tab
-        $("#wanchTab").on("click", function () {
-            wopenTab(event, 'wanchs');
-            renderOldNotes();
+    // Event keypress for search bar on dashboard
+    $("#weaverSrcBar").keypress(function (event) {
+        if (event.keyCode === 13) {
+            event.preventDefault(); // Prevents 'enter' from being registered
+            //alert("Searching for " + $("#weaverSrcBar")[0].value);
 
-            if ($("#weaverSrcBar").css("visibility") === 'visible') {
-                $("#wsearch").trigger("click");
+            var selTabValue = $(".wtablinks.active")[0].id;
+
+            if (selTabValue === "wanchTab") {
+                srcOptAt(); // Search output for anchor tab
+            } else if (selTabValue === "wbrowTab") {
+                srcOptBt(); // Search output for archive tab
             }
-        });
-
-        // Event for Archives tab
-        $("#wbrowTab").on("click", function () {
-            wopenTab(event, 'wbrows');
-            renderBrowTab();
-
-            if ($("#weaverSrcBar").css("visibility") === 'visible') {
-                $("#wsearch").trigger("click");
-            }
-        });
-
-        // Event for Descriptors tab
-        $("#wsemanTab").on("click", function () {
-            wopenTab(event, 'wsemans');
-            renderSemanTab();
-
-            if ($("#weaverSrcBar").css("visibility") === 'visible') {
-                $("#wsearch").trigger("click");
-            }
-        });
-
-        // Event when tabs (Annotations/Archives/Descriptors) are switched
-        function wopenTab(evt, wtabName) {
-            var i, wtabcontents, wtablinks;
-            wtabcontents = document.getElementsByClassName("wtabcontents");
-            for (i = 0; i < wtabcontents.length; i++) {
-                wtabcontents[i].style.display = "none";
-            }
-            wtablinks = document.getElementsByClassName("wtablinks");
-            for (i = 0; i < wtablinks.length; i++) {
-                wtablinks[i].className = wtablinks[i].className.replace(" active", "");
-            }
-            document.getElementById(wtabName).style.display = "block";
-            if (typeof evt == 'undefined') {
-                $("#wanchTab").addClass("active");
-            } else
-                evt.currentTarget.className += " active";
         }
+    });
 
-        $("#wanchTab").trigger("click"); // Trigger Annotations tab
-        $("#warrow").trigger("click"); // Trigger arrow button
+    // Generate search output for anchor tab
+    function srcOptAt() {
+        var srcTxt = $("#weaverSrcBar")[0].value.toUpperCase();
+        var inrTxt = "";
+        $.each($(".note-dom"), function (index, value) {
+            inrTxt = $("#" + value.id + ".note-dom").text().toUpperCase();
+
+            if (inrTxt.includes(srcTxt) === false) {
+                $("#" + value.id + ".note-dom").hide();
+            } else {
+                $("#" + value.id + ".note-dom").show();
+            }
+        });
     }
+
+    // Generate search output for archive tab
+    function srcOptBt() {
+        var srcTxt = $("#weaverSrcBar")[0].value.toUpperCase();
+        var inrTxt = "";
+        $.each($(".browser-container"), function (index, value) {
+            inrTxt = $("#" + value.id + ".browser-container").text().toUpperCase();
+
+            if (inrTxt.includes(srcTxt) === false) {
+                $("#" + value.id + ".browser-container").hide();
+            } else {
+                $("#" + value.id + ".browser-container").show();
+            }
+        });
+    }
+
+    // Event for Annotations tab
+    $("#wanchTab").on("click", function () {
+        wopenTab(event, 'wanchs');
+
+        var t0 = performance.now();
+        renderOldNotes();
+        /*if(Object.getOwnPropertyNames(aNotesonpage).length === 0) {
+            renderOldNotes();
+        }*/
+        var t1 = performance.now();
+        console.log("All anchors reattached in " + (t1 - t0) + " milliseconds.");
+
+        if ($("#weaverSrcBar").css("visibility") === 'visible') {
+            $("#wsearch").trigger("click");
+        }
+    });
+
+    // Event for Archives tab
+    $("#wbrowTab").on("click", function () {
+        wopenTab(event, 'wbrows');
+        renderBrowTab();
+
+        if ($("#weaverSrcBar").css("visibility") === 'visible') {
+            $("#wsearch").trigger("click");
+        }
+    });
+
+    // Event for Descriptors tab
+    $("#wsemanTab").on("click", function () {
+        wopenTab(event, 'wsemans');
+        renderSemanTab();
+
+        if ($("#weaverSrcBar").css("visibility") === 'visible') {
+            $("#wsearch").trigger("click");
+        }
+    });
+
+    // Event when tabs (Annotations/Archives/Descriptors) are switched
+    function wopenTab(evt, wtabName) {
+        var i, wtabcontents, wtablinks;
+        wtabcontents = document.getElementsByClassName("wtabcontents");
+        for (i = 0; i < wtabcontents.length; i++) {
+            wtabcontents[i].style.display = "none";
+        }
+        wtablinks = document.getElementsByClassName("wtablinks");
+        for (i = 0; i < wtablinks.length; i++) {
+            wtablinks[i].className = wtablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(wtabName).style.display = "block";
+        if (typeof evt == 'undefined') {
+            $("#wanchTab").addClass("active");
+        } else
+            evt.currentTarget.className += " active";
+    }
+
+    $("#wanchTab").trigger("click"); // Trigger Annotations tab
+    $("#warrow").trigger("click"); // Trigger arrow button
+
 }
 
 // Renders Old Notes
 function renderOldNotes() {
     //console.log("renderOldNotes Start!");
     $("#wanchs.wtabcontents").empty();
+    Object.keys(aNotesonpage).forEach(function (key) {
+        $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
+    });
+    aNotesonpage = {}; // Remove all saved 'annotated notes on page'
+    oNotesonpage = {}; // Remove all saved 'orphaned notes on page'
+    duppANOP = {};
+
     for (var key in allnotes) {
         var tempUrl = allnotes[key].urlProtocol + "//" + allnotes[key].urlHost + allnotes[key].urlPathname + allnotes[key].urlParameter; //URL of Notes
         if (tempUrl === window.location.href) { //Check if Note URLs are same as current DOM
 
+            var ti0 = performance.now();
             //console.log(allnotes[key]);
 
-            var anr = allnotes[key].anchor; //Notes previously saved on URL 
+            var annReatchStat = false; // Status if annotation is attched or not
+
+            var anr = allnotes[key].anchor; //Notes previously saved on URL
+            var selTxt = allnotes[key].selectedtext;
+
             var anrlen = anr.length; //Number of notes saved on URL
+            var anrTn = 0; // Textual nodes in anchor
+            anr.forEach(function (dat, indx) {
+                if (anr[indx].nodeName == "#text") {
+                    anrTn++;
+                } // Counting textual nodes
+            });
+            var anrNTn = anrlen - anrTn; // Non-Textual nodes in anchor
+
             var wpg = []; //Array to save DOM nodes
-            var iden;
+            var lim; //Number of DOM nodes
 
-            if (anr[0].id) {
-                //iden = anr[0].nodeName + "#" + anr[0].id;
-                //wpg = $(iden);
-                wpg = document.getElementById(anr[0].id); //Check Anchor--DOM node's ID
-            } else if (anr[0].className) {
-                // iden = anr[0].nodeName + "." + anr[0].className;
-                // wpg = $(iden);
-                wpg = document.getElementsByClassName(anr[0].className); //Check Anchor--DOM node's className
-            } else if (anr[0].nodeName) {
-                // iden = anr[0].nodeName;
-                // wpg = $(iden);
-                wpg = document.getElementsByTagName(anr[0].nodeName); //Check Anchor--DOM node's nodeName
-            }
+            var mat = []; // Stores matches
+            var mis = []; // Stores mismatches
+            var matWt = 0.75; // Bias for matches
+            var misWt = 0.25; // Bias for mismatches
+            var ntnWt = Math.round((anrlen / (anrNTn + 3 * anrTn)) * 1e2) / 1e2; // Bias for non-text nodes (for 0.25)
+            var tnWt = Math.round((3 * anrlen / (anrNTn + 3 * anrTn)) * 1e2) / 1e2; // Bias for text nodes (for 0.75)
 
-            if (!wpg.length) { //Coverts single DOM node to array
-                wpg = new Array(wpg);
-            }
+            /*console.log('anrlen: ' + anrlen);
+            console.log('anrNTn: ' + anrNTn);
+            console.log('anrTn: ' + anrTn);
+            console.log('ntnWt: ' + ntnWt);
+            console.log('tnWt: ' + tnWt);*/
 
-            var lim = wpg.length; //Number of DOM nodes
-            var mat = [];
-            var mis = [];
+            var matThres = 0.5; // Threshold for deciding if annotation should be attached or orphaned
 
-            //console.log("Anchor: ", anr);
+            var wpgIdx; // Index of 'wpg' elements
+            var tempAnr; // tempAnr saves instance on Anchor node
 
-            var i;
+            wpg = $(anr[0].nodeName + ":contains('" + selTxt + "')"); // Find all nodes that contain selected string
 
-            for (i = 0; i < lim; i++) { //Repeat for all DOM nodes
-                var tempanr = JSON.parse(JSON.stringify(anr)); //tempanr saves instance on Anchor node
+            var arrMAXmat = []; // Aggregated matches
+            var idxMAXmat; // Index of element with maximum aggregated matches 
 
-                mat.push(0); //Initialize zero 'matches'
-                mis.push(0); //Initialize zero 'mis-matches'
+            startMatching();
 
-                if (!wpg.length) {
-                    jsonCompare(wpg); //Pass selected DOM node to 'jsonCompare'
-                    //console.log("Current DOM: ", wpg);
-                } else {
-                    jsonCompare(wpg[i]); //Pass selected DOM node to 'jsonCompare'
-                    //console.log("Current DOM: ", wpg[i]);
-                }
-                if (mat[i] === anrlen && mis[i] === 0) { //Check if DOM node & Anchor node are exactly same
-                    break;
-                }
-            }
-
-            var strvarKey;
+            var strvarKey = "EvaluationData--" + key.toString();
             var strvarData = {};
 
+            if (mat[wpgIdx] !== anrlen || mis[wpgIdx] !== 0) {
 
-            strvarKey = tempUrl.toString() + "--" + key.toString();
+                genstrSimIdx('typStr');
 
-            // TEST DATA
-            strvarData["MAT"] = mat;
+                if (mat[idxMAXmat] / anr.length >= matThres) {
+                    annReatchStat = true;
+                } else {
 
-            // TEST DATA
-            strvarData["MIS"] = mis;
+                    wpg = [];
+
+                    if (anr[0].id) {
+                        wpg = document.getElementById(anr[0].id);
+                    } //Check Anchor--DOM node's ID
+                    else if (anr[0].className) {
+                        wpg = document.getElementsByClassName(anr[0].className);
+                    } //Check Anchor--DOM node's className
+                    else if (anr[0].nodeName) {
+                        wpg = document.getElementsByTagName(anr[0].nodeName);
+                    } //Check Anchor--DOM node's nodeName
+
+                    startMatching();
+
+                    genstrSimIdx('typTre');
+
+                    if (mat[idxMAXmat] / anr.length >= matThres) {
+                        annReatchStat = true;
+                    } else {
+                        annReatchStat = false;
+                    }
+                }
+
+            } else {
+                annReatchStat = true;
+                genstrSimIdx('typStr');
+            }
+
+            storeData(strvarKey, strvarData);
+
+            var note = allnotes[key];
+            var notekey = key;
+            var $noteDOM, arr, $commentDOM;
+
+            if (annReatchStat === true) {
+                printAncAnno();
+            } else {
+                printOrpAnno();
+            }
+
+            // Click event for descriptor
+            $(document).on("click", "#descriptor", descriptor);
+            // Click event for linker
+            $(document).on("click", "#linker", linker);
+            // Click event for reconstructor
+            $(document).on("click", "#reconstructor", reconstructor);
+            // Click event for deleter
+            $(document).on("click", "#deleter", deleter);
+            // Click event for eraser
+            $(document).on("click", "#eraser", eraser);
+            // Keyup event for weaver comment
+            $(document).off("keyup").on("keyup", ".weaver-new-comments", newComment);
+
+            // Generate matches & mismatches
+            function startMatching() {
+                if (wpg.length === 0) {
+                    // do nothing
+                } else if (!wpg.length) { //Coverts single DOM node to array
+                    wpg = new Array(wpg);
+                }
+
+                lim = wpg.length;
+
+                // Start with empty matches & mismatches
+                mat = [];
+                mis = [];
+
+
+                for (wpgIdx = 0; wpgIdx < lim; wpgIdx++) {
+                    tempAnr = JSON.parse(JSON.stringify(anr)); //tempAnr saves instance on Anchor node
+
+                    // Initialize zero 'matches' & 'mismatches'
+                    mat.push(0);
+                    mis.push(0);
+
+                    jsonCompare(wpg[wpgIdx]);
+
+                    if (Math.round(mat[wpgIdx] * 1e2) / 1e2 === anrlen && Math.round(mis[wpgIdx] * 1e2) / 1e2 === 0) { //Check if DOM node & Anchor node are exactly same
+                        break;
+                    }
+                }
+            }
+
+            // Generate & store similarity index
+            function genstrSimIdx(mtchtyp) {
+                arrMAXmat = [];
+                mat.forEach(function (dat, indx) {
+                    arrMAXmat.push(matWt * mat[indx] - misWt * mis[indx]); // Calculating aggregated matches // Math.round((matWt * mat[indx] - misWt * mis[indx]) * 1e2) / 1e2
+                });
+
+                idxMAXmat = arrMAXmat.indexOf(Math.max.apply(Math, arrMAXmat)); // Find maximum aggregated matches
+
+                switch (mtchtyp) {
+                    case 'typStr':
+                        strvarData.strMat = mat;
+                        strvarData.strMis = mis;
+                        strvarData.strIdxMAXmat = idxMAXmat;
+                        strvarData.strSimIdx = mat[idxMAXmat] / anr.length;
+                        break;
+
+                    case 'typTre':
+                        strvarData.treMat = mat;
+                        strvarData.treMis = mis;
+                        strvarData.treIdxMAXmat = idxMAXmat;
+                        strvarData.treSimIdx = mat[idxMAXmat] / anr.length;
+                        break;
+
+                    default:
+                        // do nothing
+                        break;
+                }
+            }
+
+            // Print anchored annotation
+            function printAncAnno() {
+                var elem = wpg[idxMAXmat];
+
+                aNotesonpage[notekey] = elem;
+
+                $noteDOM = $("<div id='" + notekey + "' class='note-dom'></div></div>");
+                $("#wanchs").prepend($noteDOM);
+                $("#" + notekey + ".note-dom").append($.templates.weaverNote.render(note));
+
+                $("#" + notekey + ".note-dom").children(".weaver-container").append("<div id='sim-index' class='weaver-header' style='text-align: left !important;'>Similarity Index: " + (Math.round((mat[idxMAXmat] / anr.length) * 1e2) / 1e2).toFixed(2) + "</div>");
+
+                arr = $.map(note.oldnotes, function (value, key) {
+                    return [
+                        [key, value]
+                    ];
+                });
+
+                for (i = 0; i < arr.length; i++) {
+                    $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1] + "<br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                    $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
+                }
+
+                if (Math.round((mat[idxMAXmat] / anr.length) * 1e2) / 1e2 === 1) {
+                    duppANOP[notekey] = true;
+                } else {
+                    duppANOP[notekey] = false;
+                }
+
+                $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-anno").css("cursor", "pointer");
+
+                // Click event
+                $(document).on("click", ".weaver-anno", glower);
+                // Click event for transcludor
+                $(document).on("click", "#transcludor", transcludor);
+            }
+
+            // Print orphaned annotation
+            function printOrpAnno() {
+                oNotesonpage[notekey] = null;
+
+                $noteDOM = $("<div id='" + notekey + "' class='note-dom'></div></div>");
+                $("#wanchs").append($noteDOM);
+                $("#" + notekey + ".note-dom").append($.templates["o-weaverNote"].render(note));
+
+                $("#" + notekey + ".note-dom").children(".weaver-container").append("<div id='sim-index' class='weaver-header' style='text-align: left !important;'>Orphan!</div>");
+
+                arr = $.map(note.oldnotes, function (value, key) {
+                    return [
+                        [key, value]
+                    ];
+                });
+
+                for (i = 0; i < arr.length; i++) {
+                    $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1] + "<br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                    $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
+                }
+            }
 
             // Compare Anchored Nodes to DOM Nodes
             function jsonCompare(node) {
                 if (node.nodeName !== "HEAD" && node.nodeName !== "SCRIPT" && node.nodeName !== "NOSCRIPT" && node.nodeType !== 8 && node.nodeType !== 10) { //Ignore if node is 'HEAD, SCRIPT or other unusable types'
                     var j;
-                    for (j = 0; j < tempanr.length; j++) { //Repeat for all elements in Anchor node
-                        var kvp = Object.keys(tempanr[j]);
+                    for (j = 0; j < tempAnr.length; j++) { //Repeat for all elements in Anchor node
+                        var kvp = Object.keys(tempAnr[j]);
 
-                        if (tempanr[j].nodeName !== '#text' && node.nodeName !== '#text') { //Match 'non-text' elements
+                        if (tempAnr[j].nodeName !== '#text' && node.nodeName !== '#text') { //Match 'non-text' elements
                             var fnd = 0;
                             for (var k = 0; k < kvp.length; k++) { //Repeat for all properties of Anchor node elements
                                 if (kvp[k] !== 'nodeDepth') {
@@ -433,7 +636,7 @@ function renderOldNotes() {
                                             }
                                         } catch (err) {}
 
-                                        tempanr[j][kvp[k]].forEach(function (dat) {
+                                        tempAnr[j][kvp[k]].forEach(function (dat) {
 
                                             var fnd = tmpcl.find(function (val) {
                                                 return val === dat;
@@ -445,48 +648,48 @@ function renderOldNotes() {
 
                                         });
 
-                                        if (clcnt === tempanr[j][kvp[k]].length) {
+                                        if (clcnt === tempAnr[j][kvp[k]].length) {
                                             fnd = fnd + 1 / (kvp.length - 1);
                                         }
                                     } else {
-                                        if (node[kvp[k]] === tempanr[j][kvp[k]]) {
+                                        if (node[kvp[k]] === tempAnr[j][kvp[k]]) {
                                             fnd = fnd + 1 / (kvp.length - 1);
                                         }
                                     }
                                 }
                             }
 
-                            if (fnd === 1) { //If all properties match
-                                mat[i] = (mat[i] * 100 + 1 * 100) / 100;
-                                tempanr.splice(j, 1); //Remove match element from Anchor node instance
+                            if (fnd === 1) { //If all properties match///////////////////////////////////////////////////
+                                mat[wpgIdx] = mat[wpgIdx] + Math.round((ntnWt * 1) * 1e2) / 1e2;
+                                tempAnr.splice(j, 1); //Remove match element from Anchor node instance
                                 break;
                             } else { //If some properties dont match
-                                fnd = fnd.toFixed(2); //Round value to second decimal place
-                                mis[i] = (mis[i] * 100 + (1 - fnd) * 100) / 100;
+                                fnd = Math.round(fnd * 1e2) / 1e2; //Round value to second decimal place
+                                mis[wpgIdx] = mis[wpgIdx] + Math.round((ntnWt * (1 - fnd)) * 1e2) / 1e2;
                             }
                         }
 
-                        if (tempanr[j].nodeName === '#text' && node.nodeName === '#text') { //Match 'text' elements
+                        if (tempAnr[j].nodeName === '#text' && node.nodeName === '#text') { //Match 'text' elements
                             var fuzsim;
-                            if (tempanr[j].nodeValue === node.nodeValue) { //If all contents match
-                                mat[i] = (mat[i] * 100 + 1 * 100) / 100;
-                                tempanr.splice(j, 1); //Remove match content from Anchor node instance
+                            if (tempAnr[j].nodeValue === node.nodeValue) { //If all contents match///////////////////////////////////////////////////
+                                mat[wpgIdx] = mat[wpgIdx] + Math.round((tnWt * 1) * 1e2) / 1e2;
+                                tempAnr.splice(j, 1); //Remove match content from Anchor node instance
                                 break;
                             } else { //If some contents dont match
                                 try {
-                                    var fuzcon = FuzzySet([tempanr[j].nodeValue], useLevenshtein = true); //FUZZY TEXT MATCHING
+                                    var fuzcon = FuzzySet([tempAnr[j].nodeValue], useLevenshtein = true); //FUZZY TEXT MATCHING
                                     if (fuzcon.get(node.nodeValue)) {
-                                        fuzsim = (fuzcon.get(node.nodeValue)[0][0]).toFixed(2); //Round value to second decimal place
+                                        fuzsim = Math.round((fuzcon.get(node.nodeValue)[0][0]) * 1e2) / 1e2; //Round value to second decimal place 
                                     } else {
                                         fuzsim = 0;
                                     }
 
-                                    if (fuzsim >= 0.5) { //If more than 50% contents match
-                                        mat[i] = (mat[i] * 100 + fuzsim * 100) / 100;
-                                        tempanr.splice(j, 1); //Remove match content from Anchor node instance
+                                    if (fuzsim >= 0.5) { //If more than 50% contents match///////////////////////////////////////////////////
+                                        mat[wpgIdx] = mat[wpgIdx] + Math.round((tnWt * fuzsim) * 1e2) / 1e2;
+                                        tempAnr.splice(j, 1); //Remove match content from Anchor node instance
                                         break;
                                     } else { //If less than 50% contents match
-                                        mis[i] = (mis[i] * 100 + (1 - fuzsim) * 100) / 100;
+                                        mis[wpgIdx] = mis[wpgIdx] + Math.round((tnWt * (1 - fuzsim)) * 1e2) / 1e2;
                                     }
                                 } catch (err) {}
 
@@ -502,131 +705,32 @@ function renderOldNotes() {
                         } catch (e) {
                             console.log(e);
                         }
-
                     }
-                    if (childNodes.length > 0) {
-                        var length = childNodes.length;
-                        for (j = 0; j < length; j++) {
-                            jsonCompare(childNodes[j]);
+                    if (childNodes) {
+                        try {
+                            var length = childNodes.length;
+                            for (j = 0; j < length; j++) {
+                                jsonCompare(childNodes[j]);
+                            }
+                        } catch (e) {
+                            console.log(e);
                         }
                     }
                 }
             }
-
-            var note = allnotes[key];
-            var notekey = key;
-
-            var arrMAXmat = [];
-
-            mat.forEach(function (dat, indx) {
-                arrMAXmat.push(0.75 * mat[indx] - 0.25 * mis[indx]);
-            });
-
-            var iMAXmat = arrMAXmat.indexOf(Math.max.apply(Math, arrMAXmat));
-
-            if (mat[iMAXmat] / anr.length >= 0.7) {
-
-                var elem = wpg[iMAXmat];
-
-                aNotesonpage[notekey] = elem;
-
-                var $noteDOM = $("<div id='" + notekey + "' class='note-dom'></div></div>");
-                $("#wanchs").prepend($noteDOM);
-                $("#" + notekey + ".note-dom").append($.templates.weaverNote.render(note));
-
-                $("#" + notekey + ".note-dom").children(".weaver-container").append("<div id='sim-index' class='weaver-header' style='text-align: left !important;'>Similarity Index: " + parseFloat(Math.round(mat[iMAXmat] / anr.length * 100) / 100).toFixed(2) + "</div>");
-
-                // TEST DATA
-                strvarData["iMAXmat"] = iMAXmat;
-
-                // STORING TEST DATA
-                strvarData["simIndex"] = mat[iMAXmat] / anr.length;
-                storeData(strvarKey, strvarData);
-
-                var arr = $.map(note.oldnotes, function (value, key) {
-                    return [
-                        [key, value]
-                    ];
-                });
-
-                for (i = 0; i < arr.length; i++) {
-                    var $commentDOM = $("<div id='" + arr[i][0] + "' class='nhtext'>" + arr[i][1] + "<br><i style='font-size: 8px;'>" + moment(arr[i][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
-                    $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
-                }
-
-                if (mat[iMAXmat] / anr.length === 1) {
-                    highlightAnchor(elem, notekey, "dup");
-                } else {
-                    highlightAnchor(elem, notekey, "dif");
-                }
-
-                $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-anno").css("cursor", "pointer");
-
-                // Click event
-                $(document).on("click", ".weaver-anno", glower);
-
-                // Click event for descriptor
-                $(document).on("click", "#descriptor", descriptor);
-                // Click event for transcludor
-                $(document).on("click", "#transcludor", transcludor);
-                // Click event for linker
-                $(document).on("click", "#linker", linker);
-                // Click event for reconstructor
-                $(document).on("click", "#reconstructor", reconstructor);
-                // Click event for deleter
-                $(document).on("click", "#deleter", deleter);
-                // Click event for eraser
-                $(document).on("click", "#eraser", eraser);
-                // Keyup event for weaver comment
-                $(document).off("keyup").on("keyup", ".weaver-new-comments", newComment);
-            } else {
-
-                oNotesonpage[notekey] = null;
-
-                // TEST DATA
-                strvarData["iMAXmat"] = iMAXmat;
-
-                // STORING TEST DATA
-                strvarData["simIndex"] = mat[iMAXmat] / anr.length;
-                storeData(strvarKey, strvarData);
-
-                var $noteDOM = $("<div id='" + notekey + "' class='note-dom'></div></div>");
-                $("#wanchs").append($noteDOM);
-                $("#" + notekey + ".note-dom").append($.templates["o-weaverNote"].render(note));
-
-                $("#" + notekey + ".note-dom").children(".weaver-container").append("<div id='sim-index' class='weaver-header' style='text-align: left !important;'>Orphan!</div>");
-
-                var arr = $.map(note.oldnotes, function (value, key) {
-                    return [
-                        [key, value]
-                    ];
-                });
-
-                for (i = 0; i < arr.length; i++) {
-                    var $commentDOM = $("<div id='" + arr[i][0] + "' class='nhtext'>" + arr[i][1] + "<br><i style='font-size: 8px;'>" + moment(arr[i][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
-                    $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
-                }
-
-                // Click event for descriptor
-                $(document).on("click", "#descriptor", descriptor);
-                // Click event for linker
-                $(document).on("click", "#linker", linker);
-                // Click event for reconstructor
-                $(document).on("click", "#reconstructor", reconstructor);
-                // Click event for deleter
-                $(document).on("click", "#deleter", deleter);
-                // Click event for eraser
-                $(document).on("click", "#eraser", eraser);
-                // Keyup event for weaver comment
-                $(document).off("keyup").on("keyup", ".weaver-new-comments", newComment);
-            }
+            var ti1 = performance.now();
+            console.log("Anchor reattached in " + (ti1 - ti0) + " milliseconds.");
         }
     }
+
+    Object.keys(aNotesonpage).forEach(function (key) {
+        highlightAnchor(aNotesonpage[key], key);
+    });
 
     // $.holdReady( true );
     //console.log("renderOldNotes Complete!");
 
-    //calcAnnCntOnPg();
+    calcAnnCntOnPg();
 }
 
 // Renders Browser Tab
@@ -689,7 +793,7 @@ function targetElement() {
                     if (wendNode.nodeName === "#text") {
                         wendOffset = wendNode.textContent.length;
                     } else {
-                        wendOffset = endNode.childNodes.length;
+                        wendOffset = wendNode.childNodes.length;
                     }
 
                     wrange.setEnd(wendNode, wendOffset);
@@ -711,7 +815,7 @@ function targetElement() {
 }
 
 // Renders WebOfData Tab
-function renderWebodata() {
+function renderWeboanch() {
     //var srcTxt = $("#weaverSrcBar")[0].value.toUpperCase();
     //var inrTxt;
 
@@ -772,8 +876,8 @@ function renderWebodata() {
         }
     );
 
-    $("body").append("<div id='weaver-overlay' class='woverlay-hide'><div class='woverlay-content'><span id='woverlay-close'>&times;</span><div id='mywebofdata'></div></div></div>");
-    var container = document.getElementById('mywebofdata');
+    $("body").append("<div id='weaver-overlay' class='woverlay-hide'><div class='woverlay-content'><div id='woverlay-toolbar'><div id='woverlay-close' class='ww ww-times' title='Close'></div></div><div id='mywebofanch'></div></div></div>");
+    var container = document.getElementById('mywebofanch');
     var data = {
         nodes: webodNodes,
         edges: webodEdges
@@ -803,6 +907,29 @@ function renderWebodata() {
                 align: 'center'
             }
         },
+        physics: {
+            enabled: true,
+            forceAtlas2Based: {
+                gravitationalConstant: -15,
+                centralGravity: 0.01,
+                springConstant: 0.08,
+                springLength: 50,
+                damping: 0.4,
+                avoidOverlap: 0
+            },
+            maxVelocity: 50,
+            minVelocity: 0.1,
+            solver: 'forceAtlas2Based',
+            stabilization: {
+                enabled: true,
+                iterations: 1000,
+                updateInterval: 100,
+                onlyDynamicEdges: false,
+                fit: true
+            },
+            timestep: 0.5,
+            adaptiveTimestep: true
+        }
     };
     var network = new vis.Network(container, data, options);
 
@@ -818,7 +945,7 @@ function renderWebodata() {
     $('#weaver-overlay').toggleClass('woverlay-show woverlay-hide');
 
     $("#woverlay-close").on("click", function () {
-        $("#wwebodata").toggleClass('wlight wdark');
+        $("#wweboanch").toggleClass('wlight wdark');
         $("body").children("#weaver-overlay").remove();
     });
 
@@ -828,53 +955,8 @@ function renderWebodata() {
 }
 
 // Highlights Anchor
-function highlightAnchor(helem, hnotekey, stat) {
-
-    if (stat === "dup") {
-
-        //alert("DUPLICATE");
-
-        /*var indx = -1;
-        ckDupJson(helem);
-
-        function ckDupJson(nod, ifNod) {
-
-            indx++;
-            var anc = allnotes[hnotekey].anchor[indx];
-
-            if (anc.annotated) {
-                var options = {};
-                options.separateWordSearch = false;
-                options.diacritics = false;
-                options.debug = false;
-                $(nod).mark(anc.nodeValue.substring(anc.startOffset, anc.nodeValue.length - anc.endOffset), options);
-            }
-
-            ifNod = (nod.contentWindow || nod.contentDocument);
-            var chNod = nod.childNodes;
-            if (ifNod) {
-                try {
-                    chNod = ifNod.document.childNodes;
-                } catch (e) {
-                    console.log(e);
-                }
-
-            }
-
-            if (chNod.length > 0) {
-                var ln = chNod.length;
-                for (var j = 0; j < ln; j++) {
-                    ckDupJson(chNod[j], ifNod);
-                }
-            }
-
-        }*/
-
-    } else if (stat === "dif") {
-
-        //alert("DIFFERENT");
-
-    }
+function highlightAnchor(helem, hnotekey) {
+    var anr = allnotes[hnotekey].anchor;
     $(helem).addClass("el-highlight").addClass(hnotekey);
 }
 
@@ -895,7 +977,9 @@ function renderNewNote(elem) {
     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-new-comments").focus();
     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-anno").css("cursor", "pointer");
 
-    highlightAnchor(elem, notekey, "dup");
+    highlightAnchor(elem, notekey);
+    aNotesonpage[notekey] = elem;
+    duppANOP[notekey] = true;
 
     // Click event
     $(document).on("click", ".weaver-anno", glower);
@@ -914,8 +998,6 @@ function renderNewNote(elem) {
     $(document).on("click", "#eraser", eraser);
     // Keyup event for weaver comment
     $(document).off("keyup").on("keyup", ".weaver-new-comments", newComment);
-
-    aNotesonpage[notekey] = elem;
 
     calcAnnCntOnPg();
 }
@@ -996,16 +1078,177 @@ function glower(event) {
 
     var notekey = $($(this).offsetParent()).offsetParent().attr("id");
 
-    try {
-        $("." + notekey + ".el-highlight").scrollIntoView();
-    } catch (err) {
-        console.log("Scroll into view failed!");
+    function scrollIntoViewFunction(callback) {
+        try {
+            $("." + notekey + ".el-highlight").scrollIntoView();
+        } catch (err) {
+            console.log("Scroll into view failed!");
+        }
+        callback();
     }
 
-    $("." + notekey + ".el-highlight").addClass("el-highlight-glow").removeClass("el-highlight");
-    setTimeout(function () {
-        $("." + notekey + ".el-highlight-glow").addClass("el-highlight").removeClass("el-highlight-glow");
-    }, 2000);
+    function glowTextFunction() {
+        var anc = allnotes[notekey].anchor;
+        var textAnc = [];
+        var tempTextAnc = [];
+        var ancMark = [];
+        anc.forEach(function (val, idx) {
+            if (anc[idx].annotated) {
+                textAnc.push(anc[idx]);
+                tempTextAnc.push(anc[idx]);
+            }
+        });
+
+        var options = {};
+        //var str;
+        var fuzcon;
+        var fuzsimData = {};
+        var totalFuzSim = [];
+        var i = 0;
+
+        options.separateWordSearch = false;
+        options.diacritics = false;
+        options.debug = false;
+        options.element = "wwmark";
+
+        ckDupJson(aNotesonpage[notekey]);
+
+        if (textAnc.length !== ancMark.length) {
+            textAnc.forEach(function (val, idx) {
+                var ancFnd = totalFuzSim.find(function (obj) {
+                    return obj.idx === idx && obj.fnd === true;
+                });
+                if (!ancFnd) {
+                    ancFnd = totalFuzSim.filter(function (obj) {
+                        return obj.idx === idx && obj.fnd === false && obj.sim != undefined;
+                    });
+                    var topSim = Math.max.apply(Math, ancFnd.map(function (obj) {
+                        return obj.sim;
+                    }));
+
+                    var str = textAnc[idx].nodeValue;
+                    str = str.substr(textAnc[idx].startOffset, textAnc[idx].nodeValue.length - textAnc[idx].endOffset - textAnc[idx].startOffset);
+
+                    indx = ancFnd.findIndex(function (obj) {
+                        return obj.sim === topSim;
+                    });
+
+                    var nodStr = ancFnd[indx].nod.nodeValue;
+                    var posInStr = nodStr.indexOf(str);
+                    if (posInStr >= 0) {
+                        ancMark.push({
+                            aNod: ancFnd[indx].nod,
+                            aStart: posInStr,
+                            aLength: str.length
+                        });
+                    } else {
+                        var len = str.length;
+                        var posInTempStr = [];
+                        for (var i = 1; i <= len; i++) {
+                            var tempStr = str.substr(0, i);
+                            if (nodStr.indexOf(tempStr) === -1) {
+                                break;
+                            } else {
+                                posInTempStr.push(nodStr.indexOf(tempStr));
+                            }
+                        }
+                        if (posInTempStr.length >= 1) {
+                            ancMark.push({
+                                aNod: ancFnd[indx].nod,
+                                aStart: posInTempStr[posInTempStr.length - 1],
+                                aLength: str.length
+                            });
+                        }
+                    }
+
+                    totalFuzSim = totalFuzSim.filter(function (obj) {
+                        return obj.idx !== idx; // && obj.nod !== ancFnd[indx].nod;
+                    });
+
+                }
+            });
+
+
+        }
+
+        ancMark.forEach(function (val, idx) {
+            $(ancMark[idx].aNod).markRanges([{
+                start: ancMark[idx].aStart,
+                length: ancMark[idx].aLength
+            }], options);
+        });
+
+        function ckDupJson(nod, ifNod) {
+            if (nod.nodeName === "#text" && nod.parentElement.nodeName !== "MARK") {
+                for (var idx = 0; idx < tempTextAnc.length; idx++) {
+                    if (tempTextAnc[idx] !== undefined) {
+                        fuzsimData = {};
+                        totalFuzSim[i] = {};
+                        fuzsimData.idx = idx;
+                        fuzsimData.fnd = false;
+                        if (tempTextAnc[idx].nodeValue == nod.nodeValue) {
+                            ancMark.push({
+                                aNod: nod,
+                                aStart: tempTextAnc[idx].startOffset,
+                                aLength: tempTextAnc[idx].nodeValue.length - tempTextAnc[idx].endOffset - tempTextAnc[idx].startOffset
+                            });
+                            fuzsimData.fnd = true;
+                            tempTextAnc[idx] = undefined;
+                        } else {
+                            var str = tempTextAnc[idx].nodeValue;
+                            str = str.substr(tempTextAnc[idx].startOffset, tempTextAnc[idx].nodeValue.length - tempTextAnc[idx].endOffset - tempTextAnc[idx].startOffset);
+
+                            fuzcon = FuzzySet([tempTextAnc[idx].nodeValue], useLevenshtein = true);
+                            var tempFS = fuzcon.get(nod.nodeValue, 0.00, 0.00);
+                            if (tempFS !== 0) {
+                                fuzsimData.nod = nod;
+                                fuzsimData.sim = tempFS[0][0];
+                            }
+                        }
+                        totalFuzSim[i] = fuzsimData;
+                        i = i + 1;
+                        if (fuzsimData.fnd === true) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            ifNod = (nod.contentWindow || nod.contentDocument);
+            var chNod = nod.childNodes;
+            if (ifNod) {
+                try {
+                    chNod = ifNod.document.childNodes;
+                } catch (e) {
+                    console.log(e);
+                }
+            }
+
+            if (chNod.length > 0) {
+                var ln = chNod.length;
+                for (var j = 0; j < ln; j++) {
+                    ckDupJson(chNod[j], ifNod);
+                }
+            }
+        }
+    }
+
+    function darkTextFunction() {
+        $(aNotesonpage[notekey]).unmark();
+    }
+
+    function glowFunction() {
+        $("." + notekey + ".el-highlight").addClass("el-highlight-glow").removeClass("el-highlight");
+        glowTextFunction();
+        setTimeout(function () {
+            $("." + notekey + ".el-highlight-glow").addClass("el-highlight").removeClass("el-highlight-glow");
+            darkTextFunction();
+        }, 2000);
+    }
+
+    scrollIntoViewFunction(function () {
+        glowFunction();
+    });
 }
 
 //Reconstructor function
@@ -1017,7 +1260,7 @@ function reconstructor(event) {
 
     if ($(this).hasClass("active")) {
         $("body").children("#weaver-overlay").remove();
-        $("body").append("<div id='weaver-overlay' class='woverlay-hide'><div class='woverlay-content'><span id='woverlay-close'>&times;</span><div id='recnstrWindow'></div></div></div>");
+        $("body").append("<div id='weaver-overlay' class='woverlay-hide'><div class='woverlay-content'><div id='woverlay-toolbar'><div id='woverlay-close' class='ww ww-times' title='Close'></div><div id='woverlay-tog-bg' class='ww ww-toggle-off' title='Toggle Background'></div></div><div id='recnstrWindow' class='rcWin-bright'></div></div></div>");
 
         var anrElem = allnotes[notekey].anchor; // Pass anchor (that is to be reconstructed) as array
         var recnstrAnchor = '';
@@ -1092,6 +1335,11 @@ function reconstructor(event) {
         $("#woverlay-close").on("click", function () {
             $("#" + notekey + ".note-dom").find("#reconstructor").toggleClass("active");
             $("body").children("#weaver-overlay").remove();
+        });
+
+        $("#woverlay-tog-bg").on("click", function () {
+            $(this).toggleClass('ww-toggle-off ww-toggle-on');
+            $("body").find("#recnstrWindow").toggleClass('rcWin-bright rcWin-dark');
         });
 
     }
@@ -1181,7 +1429,7 @@ function transcludor(event) {
 
     $(this).toggleClass("active");
     if ($(this).hasClass("active")) {
-        var $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>Transclude Note</div><div id='transcludorTool'><div id='transView' class='ww ww-eye tbutton' title='View Transclusion' style='float:left!important'></div><div id='transRem' class='ww ww-minus tbutton' title='Remove Transclusion' style='float:right!important'></div><div id='transAdd' class='ww ww-plus tbutton' title='Add Transclusion' style='float:right!important'></div></div></div>");
+        var $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>Transclude Note</div><div id='transcludorTool'><div id='transView' class='ww ww-eye tbutton' title='View/Hide Transclusion' style='float:left!important'></div><div id='transRem' class='ww ww-minus tbutton' title='Remove Transclusion' style='float:right!important'></div><div id='transAdd' class='ww ww-plus tbutton' title='Add Transclusion' style='float:right!important'></div></div></div>");
         $("#" + notekey + ".note-dom").append($($transcludorContainer));
 
         if (allnotes[notekey].transclusion) {
@@ -1295,8 +1543,8 @@ function addTrans(event) {
 // Remove Transclusion
 function removeTrans(event) {
     event.stopImmediatePropagation();
-    var transkey = $($(this).parent()).siblings().children(".transcludor-links").attr("id");
     var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var transkey = allnotes[notekey].transclusion;
 
     delete allnotes[notekey].transclusion;
     var note = allnotes[notekey];
@@ -1333,7 +1581,7 @@ function viewTrans(event) {
     event.stopImmediatePropagation();
     $(this).toggleClass("active");
     var notekey = $($(this).offsetParent()).offsetParent().attr("id");
-    var transkey = $("#" + notekey + ".note-dom").find(".transcludor-links").attr("id");
+    var transkey = allnotes[notekey].transclusion;
 
     if ($(this).hasClass("active")) { //$("#" + transkey + ".transcludor-viewer").length === 0     
         loadTransclusion(notekey, transkey);
@@ -1348,8 +1596,7 @@ function viewTrans(event) {
 // Load Transclusion Viewer
 function loadTransclusion(notekey, transkey) {
     $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
-    $("." + notekey + ".el-highlight").prepend("<div class='transcludor-viewer'></div>");
-    $("." + notekey + ".el-highlight").find(".transcludor-viewer").attr('id', transkey);
+    $("." + notekey + ".el-highlight").prepend("<div id='" + transkey + "' class='transcludor-viewer'></div>");
 
     var hdrBaseUrl = allnotes[transkey].urlProtocol + "//" + allnotes[transkey].urlHost;
     var hdrArgs = allnotes[transkey].urlPathname + allnotes[transkey].urlParameter;
@@ -1373,10 +1620,10 @@ function loadTransclusion(notekey, transkey) {
         if (msg.status === 1 && cnt === 0) {
             if (msg.text.length > 0) {
                 XHrRes = msg.text;
-                $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion'></div></div><div id='trnVr-content'>" + XHrRes + "</div>");
+                $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-content'>" + XHrRes + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion' style='float: right;'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion' style='float: right;'></div></div><div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div>");
             } else {
                 XHrRes = "Annotation orphaned!";
-                $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion'></div></div><div id='trnVr-content' style='color: red !important;'>" + XHrRes + "</div>");
+                $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-content' style='color: red !important;'>" + XHrRes + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion' style='float: right;'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion' style='float: right;'></div></div><div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div>");
             }
 
 
@@ -1386,7 +1633,7 @@ function loadTransclusion(notekey, transkey) {
         if (msg.status === 0 && cnt === 0) {
             XHrRes = "Could not connect to server! Please try again later.";
 
-            $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion'></div></div><div id='trnVr-content' style='color: red !important;'>" + XHrRes + "</div>");
+            $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").append("<div id='trnVr-content' style='color: red !important;'>" + XHrRes + "</div><div id='trnVr-toolbar'><div id='hideTrnVr' class='ww ww-eye-slash lbutton' title='Hide Transclusion' style='float: right;'></div><div id='refreshTrnVr' class='ww ww-refresh lbutton' title='Refresh Transclusion' style='float: right;'></div></div><div id='trnVr-banner'>" + "<b>* Transclusion Source: </b><i>" + hdrBaseUrl + hdrArgs + "</i>" + "</div>");
 
             cnt++;
         }
@@ -1416,18 +1663,29 @@ function refreshTransView(event) {
 function deleter(event) {
     event.stopImmediatePropagation();
     var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var transkey = allnotes[notekey].transclusion;
 
     var elem = $("." + notekey + ".el-highlight")[0];
     var anncnt = 0;
+
+    $($(elem).find('#' + transkey + '.transcludor-viewer')[0]).remove();
+
     delete allnotes[notekey];
-    delete aNotesonpage[notekey];
+    if (aNotesonpage[notekey]) {
+        delete aNotesonpage[notekey];
+        delete duppANOP[notekey];
+    } else {
+        delete oNotesonpage[notekey];
+    }
     removeData(notekey);
 
-    elem.classList.forEach(function (dat, indx) {
-        if (elem.classList[indx].substring(0, 3) === "ww-") {
-            anncnt++;
-        }
-    });
+    if (elem) {
+        elem.classList.forEach(function (dat, indx) {
+            if (elem.classList[indx].substring(0, 3) === "ww-") {
+                anncnt++;
+            }
+        });
+    }
 
     if (anncnt === 1) {
         $("." + notekey + ".el-highlight").removeClass("el-highlight").removeClass(notekey);
