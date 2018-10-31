@@ -225,7 +225,7 @@
     border: 2px solid #e687b7 !important;
 }
 
-wwmark{
+wwmark {
     background: yellow;
 }
 
@@ -279,10 +279,39 @@ rcweavermark {
     width: 100% !important;
 }
 
+.weaver-dd-options {
+    display: block !important;
+    box-sizing: border-box;
+    padding: 2px;
+    height: 26px;
+    width: 100% !important;
+}
+
+#share-dd-select {
+    font: inherit;
+    display: block;
+    height: 100%;
+    width: 50%;
+    border: 1px solid #a9cced;
+    border-radius: 4px;
+    background-color: #a9cced;
+    padding-left: 5px;
+    padding-right: 5px;
+    margin-left: 10px;
+    box-shadow: none;
+}
+
+#share-dd-select option {
+    background-color: #a9cced;
+    border: 1px solid #a9cced;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
 .weaver-old-comments {
     font-size: 12px !important;
     width: 100% !important;
-    max-height: 100px !important;
+    max-height: 200px !important;
     background-color: #a9cced !important;
     border-radius: 2px !important;
     padding: 4px !important;
@@ -440,6 +469,7 @@ rcweavermark {
 .ww {
     padding: 4px;
     box-sizing: border-box;
+    cursor: pointer;
 }
 
 .dtext,
@@ -666,7 +696,8 @@ rcweavermark {
 }
 
 /* Modal Content */
-#mywebofanch {
+#mywebofanch,
+#myloginpage {
     box-sizing: border-box !important;
     background-color: #ffffff !important;
     border-left: 1px solid #777777 !important;
@@ -705,7 +736,7 @@ rcweavermark {
 .woverlay-content {
     box-sizing: border-box !important;
     height: 500px !important;
-    width: 80% !important;
+    width: 90% !important;
     padding-left: 10% !important;
     padding-top: 0px !important;
     padding-right: 10% !important;
@@ -714,6 +745,7 @@ rcweavermark {
 }
 
 #mywebofanch,
+#myloginpage,
 #recnstrWindow {
     margin: auto !important;
     overflow: auto !important;
@@ -881,4 +913,178 @@ rcweavermark {
     font-family: medium-content-serif-font, Georgia, Cambria, "Times New Roman", Times, serif !important;
     width: 100%;
     box-sizing: border-box;
+}
+
+
+
+.ww-form-signin {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: 420px;
+    max-width: 330px;
+    padding: 15px;
+    margin: 0px auto auto auto;
+}
+
+.ww-form-signin .ww-form-header {
+    position: relative;
+    box-sizing: border-box;
+    height: auto;
+    padding: 10px;
+    font-size: 20px;
+    text-align: center;
+    border: 1px solid transparent;
+    border-bottom-color: #a2a9b1;
+    margin-bottom: 40px
+}
+
+.ww-form-signin .ww-form-control {
+    position: relative;
+    box-sizing: border-box;
+    height: auto;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #a2a9b1;
+}
+
+.ww-form-signin .ww-form-control:focus {
+    z-index: 2;
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, .25)
+}
+
+.ww-form-signin input[type="email"] {
+    margin-bottom: -1px;
+    width: 100%;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.ww-form-signin input[type="password"] {
+    margin-bottom: 10px;
+    width: 100%;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.ww-alert {
+    position: relative;
+    padding: 4px 20px;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+    border-radius: 4px
+}
+
+.ww-alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb
+}
+
+.ww-tipLblHide {
+    display: none;
+}
+
+.ww-tipBtn {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 6px 12px;
+    font-size: 16px;
+    line-height: 1.5;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out
+}
+
+@media screen and (prefers-reduced-motion:reduce) {
+    .ww-tipBtn {
+        transition: none
+    }
+}
+
+.ww-tipBtn:focus,
+.ww-tipBtn:hover {
+    text-decoration: none
+}
+
+.ww-tipBtn.focus,
+.ww-tipBtn:focus {
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, .25)
+}
+
+.ww-tipBtn-lg {
+    padding: 8px 16px;
+    font-size: 20px;
+    line-height: 1.5;
+    border-radius: 6px
+}
+
+.ww-tipBtn-primary {
+    color: #fff !important;
+    background-color: #007bff !important;
+    border-color: #007bff !important
+}
+
+.ww-tipBtn-primary:hover {
+    color: #fff !important;
+    background-color: #0069d9 !important;
+    border-color: #0062cc !important
+}
+
+.ww-tipBtn-primary.focus,
+.ww-tipBtn-primary:focus {
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, .5) !important
+}
+
+.ww-tipBtn-secondary {
+    color: #fff !important;
+    background-color: #6c757d !important;
+    border-color: #6c757d !important
+}
+
+.ww-tipBtn-secondary:hover {
+    color: #fff !important;
+    background-color: #5a6268 !important;
+    border-color: #545b62 !important
+}
+
+.ww-tipBtn-secondary.focus,
+.ww-tipBtn-secondary:focus {
+    box-shadow: 0 0 0 4px rgba(108, 117, 125, .5) !important
+}
+
+.ww-tipBtn-danger {
+    color: #fff !important;
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important
+}
+
+.ww-tipBtn-danger:hover {
+    color: #fff !important;
+    background-color: #c82333 !important;
+    border-color: #bd2130 !important
+}
+
+.ww-tipBtn-danger.focus,
+.ww-tipBtn-danger:focus {
+    box-shadow: 0 0 0 4px rgba(220, 53, 69, .5) !important
+}
+
+.ww-tipBtn-block {
+    display: block !important;
+    width: 100% !important
 }

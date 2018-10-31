@@ -1,4 +1,7 @@
 // Declare local variables
+var userName = null;
+var grpLst = [];
+var tempAuthState = false;
 var allnotes = {};
 var aNotesonpage = {};
 var oNotesonpage = {};
@@ -6,16 +9,6 @@ var duppANOP = {};
 var wselectedanchor = {};
 var wselectedtext;
 var wselectedelement;
-
-// Fetch data from storage and save into local variable 'allnotes'
-getData(null, function (items) {
-    for (var key in items) {
-        if (key.substring(0, 3) === "ww-") {
-            allnotes[key] = items[key];
-        }
-    }
-    console.log("Available Notes:" + Object.keys(allnotes).length);
-});
 
 // Stop HREFs from re-directing on note-dom click events
 $("a").on("click", function (e) {
@@ -26,33 +19,26 @@ $("a").on("click", function (e) {
 
 // Listener function will be called when a tab is updated
 chrome.runtime.onMessage.addListener(function (message, sender) {
-
-    switch (message) {
+    switch (message.type) {
         case "clear-tipp":
             // Request to clear Tippanee
             $("body").children("#weaver-bubble").remove(); // Remove Tippanee bubble
             $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
-
             // Remove highlighted annotations
             Object.keys(aNotesonpage).forEach(function (key) {
                 $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
             });
-
             aNotesonpage = {};
             oNotesonpage = {};
             duppANOP = {};
-
             //console.log("clear-tipp Complete");
             break;
 
         case "render-tipp":
             // Request to render Tippanee
-            addBubble(function () {
-                renderDash();
-            });
-            // Adds Tippanee bubble into webpage DOM 'THEN'
-            // Adds Tippanee dash into webpage DOM
-            //console.log("render-tipp Complete");
+            userName = message.usr;
+            //console.log("User:", userName);
+            renderTippFunc();
             break;
 
         case "update-tipp":
@@ -60,15 +46,11 @@ chrome.runtime.onMessage.addListener(function (message, sender) {
             Object.keys(aNotesonpage).forEach(function (key) {
                 $("." + key + ".el-highlight").removeClass("el-highlight").removeClass(key);
             });
-
             aNotesonpage = {};
             oNotesonpage = {};
             duppANOP = {};
-
             $('.transcludor-viewer').remove();
-
             renderOldNotes();
-
             //console.log("update-tipp Complete");
             break;
 
@@ -76,6 +58,95 @@ chrome.runtime.onMessage.addListener(function (message, sender) {
             // Called when a tab is activated
             calcAnnCntOnPg();
             //console.log("tab Activated");
+            break;
+
+        case "auth-screen-alert":
+            var err = message.alertErr;
+            switch (err) {
+                case "auth/wrong-password":
+                case "auth/email-already-in-use":
+                    $("#wrngPsw").fadeToggle("fast");
+                    setTimeout(function () {
+                        $("#wrngPsw").fadeToggle("fast");
+                    }, 2000);
+                    document.getElementById('inputPassword').value = "";
+                    document.getElementById('inputPassword').focus();
+                    break;
+                case "auth/user-not-found":
+                    $("#unkwnEmPs").fadeToggle("fast");
+                    setTimeout(function () {
+                        $("#unkwnEmPs").fadeToggle("fast");
+                    }, 2000);
+                    document.getElementById('btnSignUp').focus();
+                    break;
+                default:
+                    //do nothing
+            }
+            break;
+
+        case "user-in":
+            var user = message.user;
+            var mode = message.mode;
+            if (user) {
+                userName = user;
+                if ($("#wlogin").hasClass("wdark")) {
+                    $("#wlogin").toggleClass('wlight wdark');
+                }
+                var str = "Logged in as " + userName;
+                $("#wlogin").attr("title", str);
+                var logAlert;
+                switch (mode) {
+                    case "btnLogIn":
+                        $("#myloginpage").empty();
+                        logAlert = "<div id='elem-signin' class='ww-form-signin'><div class='ww-form-header'>Logged in as " + userName + "</div></div>";
+                        $("#myloginpage").append(logAlert);
+                        setTimeout(function () {
+                            $("#woverlay-close").trigger("click");
+                        }, 2000);
+                        getServerAnno(function () { /*do nothing*/ });
+                        break;
+                    case "btnSignUp":
+                        $("#myloginpage").empty();
+                        logAlert = "<div id='elem-signin' class='ww-form-signin'><div class='ww-form-header'>Signed up as " + userName + "</div></div>";
+                        $("#myloginpage").append(logAlert);
+                        setTimeout(function () {
+                            $("#woverlay-close").trigger("click");
+                        }, 2000);
+                        getServerAnno(function () { /*do nothing*/ });
+                        break;
+                    default:
+                        //do nothing
+                }
+            }
+            break;
+
+        case "user-not-in":
+            $("#lgOtCmplt").fadeToggle("fast");
+            setTimeout(function () {
+                $("#lgOtCmplt").fadeToggle("fast");
+            }, 2000);
+            document.getElementById('elem-signin').style.display = "block";
+            document.getElementById('inputEmail').value = "";
+            document.getElementById('inputPassword').value = "";
+            document.getElementById('inputEmail').focus();
+            break;
+
+        case "set-server-anno":
+            allnotes = message.data;
+            grpLst = message.grp;
+            renderOldNotes();
+            break;
+
+        case "set-local-anno":
+            allnotes = {};
+            getLocalAnno(null, function (items) {
+                for (var key in items) {
+                    if (key.substring(0, 3) === "ww-") {
+                        allnotes[key] = items[key];
+                    }
+                }
+                renderOldNotes();
+            });
             break;
 
         default:
@@ -102,6 +173,54 @@ function calcAnnCntOnPg() {
     });
 }
 
+// Render the TippDOM elements
+function renderTippFunc() {
+    if (userName === null) {
+        // Fetch data from storage and save into local variable 'allnotes'
+        getLocalAnno(null, function (items) {
+            for (var key in items) {
+                if (key.substring(0, 3) === "ww-") {
+                    allnotes[key] = items[key];
+                }
+            }
+            //console.log("Getting annotation data from local");
+            //console.log("Available Notes:" + Object.keys(allnotes).length);
+            // Adds Tippanee bubble into webpage DOM 'THEN'
+            // Adds Tippanee dash into webpage DOM
+            addTippDoms();
+            //console.log("render-tipp Complete");
+        });
+    } else {
+        getServerAnno(function () {
+            //console.log("Getting annotation data from server");
+            //console.log("Available Notes:" + Object.keys(allnotes).length);
+            // Adds Tippanee bubble into webpage DOM 'THEN'
+            // Adds Tippanee dash into webpage DOM
+            addTippDoms();
+            //console.log("render-tipp Complete");
+        });
+    }
+}
+
+// Get annotation data (from local or server)
+function addTippDoms() {
+    addBubble(function () {
+        renderDash(function () {
+            if (userName) {
+                if ($("#wlogin").hasClass("wdark")) {
+                    $("#wlogin").toggleClass('wlight wdark');
+                }
+                var str = "Logged in as " + userName;
+                $("#wlogin").attr("title", str);
+            } else {
+                if ($("#wlogin").hasClass("wlight")) {
+                    $("#wlogin").toggleClass('wlight wdark');
+                }
+                $("#wlogin").attr("title", "Log in / Sign up");
+            }
+        });
+    });
+}
 
 // Bubble Functions///////////////////////////////////////////////////////////////////////////////
 // Add bubble to website DOM
@@ -137,7 +256,7 @@ function hideBubble() {
         try {
             document.getSelection().removeAllRanges();
         } catch (err) {
-            console.log(err);
+            //console.log(err);
         }
     }
 }
@@ -211,7 +330,7 @@ function bubbleClick(elem) {
 
 // Dashboard Functions////////////////////////////////////////////////////////////////////////////
 // Renders the Tippanee dashboard
-function renderDash() {
+function renderDash(callback) {
     $("body").children("#weaver-dash").remove(); // Remove Tippanee dash
     $("body").append($.templates.dashDOM.render());
 
@@ -220,6 +339,12 @@ function renderDash() {
         $("#warrow").toggleClass('ww-angle-right ww-angle-left');
         $("#weaver-dash").toggleClass('weaver-dash-max weaver-dash-min');
         //$("#weaver-toolbar").toggle();
+    });
+
+    // Event button for login on dashboard
+    $("#wlogin").on("click", function () {
+        renderLoginPage();
+        //$("#wlogin").toggleClass('wlight wdark');
     });
 
     // Event button for web of data on dashboard
@@ -308,14 +433,16 @@ function renderDash() {
     // Event for Annotations tab
     $("#wanchTab").on("click", function () {
         wopenTab(event, 'wanchs');
+        //var t0 = performance.now();
+        //var t1 = performance.now();
+        //console.log("All anchors reattached in " + (t1 - t0) + " milliseconds.");
 
-        var t0 = performance.now();
-        renderOldNotes();
-        /*if(Object.getOwnPropertyNames(aNotesonpage).length === 0) {
+        if (userName !== null) {
+            getServerAnno(renderOldNotes);
+        } else {
             renderOldNotes();
-        }*/
-        var t1 = performance.now();
-        console.log("All anchors reattached in " + (t1 - t0) + " milliseconds.");
+        }
+
 
         if ($("#weaverSrcBar").css("visibility") === 'visible') {
             $("#wsearch").trigger("click");
@@ -363,6 +490,7 @@ function renderDash() {
     $("#wanchTab").trigger("click"); // Trigger Annotations tab
     $("#warrow").trigger("click"); // Trigger arrow button
 
+    callback();
 }
 
 // Renders Old Notes
@@ -380,7 +508,7 @@ function renderOldNotes() {
         var tempUrl = allnotes[key].urlProtocol + "//" + allnotes[key].urlHost + allnotes[key].urlPathname + allnotes[key].urlParameter; //URL of Notes
         if (tempUrl === window.location.href) { //Check if Note URLs are same as current DOM
 
-            var ti0 = performance.now();
+            //var ti0 = performance.now();
             //console.log(allnotes[key]);
 
             var annReatchStat = false; // Status if annotation is attched or not
@@ -425,7 +553,7 @@ function renderOldNotes() {
 
             startMatching();
 
-            var strvarKey = "EvaluationData--" + key.toString();
+            //var strvarKey = "EvaluationData--" + key.toString();
             var strvarData = {};
 
             if (mat[wpgIdx] !== anrlen || mis[wpgIdx] !== 0) {
@@ -464,7 +592,7 @@ function renderOldNotes() {
                 genstrSimIdx('typStr');
             }
 
-            storeData(strvarKey, strvarData);
+            //setLocalAnno(strvarKey, strvarData);
 
             var note = allnotes[key];
             var notekey = key;
@@ -567,8 +695,12 @@ function renderOldNotes() {
                     ];
                 });
 
-                for (i = 0; i < arr.length; i++) {
-                    $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1] + "<br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                for (var wpgIdx = 0; wpgIdx < arr.length; wpgIdx++) {
+                    if (arr[wpgIdx][1].addedby === userName || userName === null) {
+                        $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1].note + "<br><br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                    } else {
+                        $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'><b>" + arr[wpgIdx][1].addedby + "</b><br><br>&nbsp;&nbsp;" + arr[wpgIdx][1].note + "<br><br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "</div>");
+                    }
                     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
                 }
 
@@ -578,12 +710,40 @@ function renderOldNotes() {
                     duppANOP[notekey] = false;
                 }
 
+                if (userName !== null) {
+                    var wcPrnt = $("#" + notekey + ".note-dom").children(".weaver-container");
+                    var ddChld = document.createElement('div');
+                    ddChld.id = "share-dd";
+                    ddChld.classList.add("weaver-dd-options");
+                    var inrHtml = "";
+                    inrHtml = inrHtml.concat("<select id='share-dd-select'><option value='Private'>Private</option>");
+                    grpLst.forEach(function (val) {
+                        inrHtml = inrHtml.concat("<option value='", val, "'>", val, "</option>");
+                    });
+                    inrHtml = inrHtml.concat("</select>");
+                    ddChld.innerHTML = inrHtml;
+                    wcPrnt.append(ddChld);
+
+                    var slWt = allnotes[notekey].sharedwith;
+                    var stWtStr = "#share-dd-select option[value='" + slWt + "']";
+                    $("#" + notekey + ".note-dom").children(".weaver-container").find(stWtStr).attr('selected', 'selected');
+
+                    if (allnotes[notekey].owner !== userName) {
+                        $("#" + notekey + ".note-dom").children(".weaver-container").find("#share-dd-select").attr('disabled', true);
+                        $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-options").children("#deleter").css('visibility', 'hidden');
+                    }
+                }
+
+
+
                 $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-anno").css("cursor", "pointer");
 
                 // Click event
                 $(document).on("click", ".weaver-anno", glower);
                 // Click event for transcludor
                 $(document).on("click", "#transcludor", transcludor);
+                // Change event for dropdown
+                $(document).on("change", "#share-dd-select", changeAnnoGrp);
             }
 
             // Print orphaned annotation
@@ -602,10 +762,41 @@ function renderOldNotes() {
                     ];
                 });
 
-                for (i = 0; i < arr.length; i++) {
-                    $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1] + "<br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                for (var wpgIdx = 0; wpgIdx < arr.length; wpgIdx++) {
+                    if (arr[wpgIdx][1].addedby === userName || userName === null) {
+                        $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'>" + arr[wpgIdx][1].note + "<br><br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+                    } else {
+                        $commentDOM = $("<div id='" + arr[wpgIdx][0] + "' class='nhtext'><b>" + arr[wpgIdx][1].addedby + "</b><br><br>&nbsp;&nbsp;" + arr[wpgIdx][1].note + "<br><br><i style='font-size: 8px;'>" + moment(arr[wpgIdx][0]).format('lll') + "</i>" + "</div>");
+                    }
                     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
                 }
+
+                if (userName !== null) {
+                    var wcPrnt = $("#" + notekey + ".note-dom").children(".weaver-container");
+                    var ddChld = document.createElement('div');
+                    ddChld.id = "share-dd";
+                    ddChld.classList.add("weaver-dd-options");
+                    var inrHtml = "";
+                    inrHtml = inrHtml.concat("<select id='share-dd-select'><option value='Private'>Private</option>");
+                    grpLst.forEach(function (val) {
+                        inrHtml = inrHtml.concat("<option value='", val, "'>", val, "</option>");
+                    });
+                    inrHtml = inrHtml.concat("</select>");
+                    ddChld.innerHTML = inrHtml;
+                    wcPrnt.append(ddChld);
+
+                    var slWt = allnotes[notekey].sharedwith;
+                    var stWtStr = "#share-dd-select option[value='" + slWt + "']";
+                    $("#" + notekey + ".note-dom").children(".weaver-container").find(stWtStr).attr('selected', 'selected');
+
+                    if (allnotes[notekey].owner !== userName) {
+                        $("#" + notekey + ".note-dom").children(".weaver-container").find("#share-dd-select").attr('disabled', true);
+                        $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-options").children("#deleter").css('visibility', 'hidden');
+                    }
+                }
+
+                // Change event for dropdown
+                $(document).on("change", "#share-dd-select", changeAnnoGrp);
             }
 
             // Compare Anchored Nodes to DOM Nodes
@@ -703,7 +894,7 @@ function renderOldNotes() {
                         try {
                             childNodes = iframeNodes.document.childNodes;
                         } catch (e) {
-                            console.log(e);
+                            //console.log(e);
                         }
                     }
                     if (childNodes) {
@@ -713,13 +904,13 @@ function renderOldNotes() {
                                 jsonCompare(childNodes[j]);
                             }
                         } catch (e) {
-                            console.log(e);
+                            //console.log(e);
                         }
                     }
                 }
             }
-            var ti1 = performance.now();
-            console.log("Anchor reattached in " + (ti1 - ti0) + " milliseconds.");
+            //var ti1 = performance.now();
+            //console.log("Anchor reattached in " + (ti1 - ti0) + " milliseconds.");
         }
     }
 
@@ -727,10 +918,11 @@ function renderOldNotes() {
         highlightAnchor(aNotesonpage[key], key);
     });
 
-    // $.holdReady( true );
+    //$.holdReady( true );
     //console.log("renderOldNotes Complete!");
 
     calcAnnCntOnPg();
+    //console.log(Object.keys(allnotes));
 }
 
 // Renders Browser Tab
@@ -747,13 +939,21 @@ function renderBrowTab() {
             window.open(tempUrl);
         });
 
-        Object.keys(allnotes[notekey].oldnotes).forEach(
-            function (key) {
-                var k = key;
-                var v = allnotes[notekey].oldnotes[k];
-                var $browserComment = $("<div id='" + k + "' class='nhtext'>" + v + "<br><i style='font-size: 8px;'>" + moment(k).format('lll') + "</i>" + "</div>");
-                $("#" + notekey + ".browser-container").children(".browser-old-comments").append($browserComment);
-            });
+        if (allnotes[notekey].oldnotes) {
+            Object.keys(allnotes[notekey].oldnotes).forEach(
+                function (key) {
+                    var k = key;
+                    var v = allnotes[notekey].oldnotes[k];
+                    var $browserComment;
+                    if (userName !== null) {
+                        $browserComment = $("<div id='" + k + "' class='nhtext'><i>" + v.addedby + "</i><br><br>&nbsp;&nbsp;" + v.note + "<br><br><i style='font-size: 8px;'>" + moment(k).format('lll') + "</i>" + "</div>");
+                    } else {
+                        $browserComment = $("<div id='" + k + "' class='nhtext'>" + v.note + "<br><br><i style='font-size: 8px;'>" + moment(k).format('lll') + "</i>" + "</div>");
+                    }
+
+                    $("#" + notekey + ".browser-container").children(".browser-old-comments").append($browserComment);
+                });
+        }
     });
 }
 
@@ -847,10 +1047,13 @@ function renderWeboanch() {
     nodeArr.forEach(
         function (nodeElem) {
             //alert(key);
-            //inrTxt = "";
             var tempUrl = allnotes[nodeElem].urlProtocol + "//" + allnotes[nodeElem].urlHost + allnotes[nodeElem].urlPathname + allnotes[nodeElem].urlParameter;
-            //inrTxt = (tempUrl + " " + allnotes[nodeElem].addedon + " " + allnotes[nodeElem].selectedtext).toUpperCase();
-            var edgeArr = allnotes[nodeElem].links;
+            var edgeArr;
+            if (allnotes[nodeElem].links) {
+                edgeArr = allnotes[nodeElem].links;
+            } else {
+                edgeArr = [];
+            }
 
             var webodNodeElement = {};
             webodNodeElement.id = nodeArr.indexOf(nodeElem);
@@ -858,7 +1061,12 @@ function renderWeboanch() {
             //console.log(webodNodeElement.id);
             webodNodeUrl.push(tempUrl);
 
-            webodNodeElement.value = Object.keys(allnotes[nodeElem].oldnotes).length;
+            try {
+                webodNodeElement.value = Object.keys(allnotes[nodeElem].oldnotes).length;
+            } catch (e) {
+                webodNodeElement.value = 0;
+            }
+
             webodNodeElement.group = urlGroup.indexOf(allnotes[nodeElem].urlHost);
             webodNodeElement.label = allnotes[nodeElem].urlHost;
             webodNodeElement.title = "<i style='float: right;'>" + allnotes[nodeElem].addedon + "</i><br/><br/>" + allnotes[nodeElem].selectedtext + "<br/><br/><i style='float: right; text-algin: justify; word-break: break-all;'> <b>URL: </b>" + tempUrl + "</i>";
@@ -954,6 +1162,138 @@ function renderWeboanch() {
     }
 }
 
+// Renders Login Tab
+function renderLoginPage() {
+    $("body").children("#weaver-overlay").remove();
+
+    $("body").append("<div id='weaver-overlay' class='woverlay-hide'><div class='woverlay-content'><div id='woverlay-toolbar'><div id='woverlay-close' class='ww ww-times' title='Close'></div></div><div id='myloginpage'></div></div></div>");
+
+    var logInDivs = "<div id='elem-signin' class='ww-form-signin'><div class='ww-form-header'>Log in / Sign up</div><input type='email' id='inputEmail' class='ww-form-control' placeholder='Email address'> <input type='password' id='inputPassword' class='ww-form-control' placeholder='Password'><div id='lgsuMsgs'><div id='wrngPsw' class='ww-alert ww-alert-danger ww-tipLblHide' role='alert'><strong>Wrong password!</strong><br>Try again.</div><div id='invldEm' class='ww-alert ww-alert-danger ww-tipLblHide' role='alert'><strong>Invalid email!</strong><br>Try again.</div><div id='invldPsLen' class='ww-alert ww-alert-danger ww-tipLblHide' role='alert'>Please choose a password of minimum <strong>8 digit</strong>.</div><div id='unkwnEmPs' class='ww-alert ww-alert-danger ww-tipLblHide' role='alert'><strong>Couldn't find your Tippanee Account.</strong> Sign up to continue.</div></div><button class='ww-tipBtn ww-tipBtn-lg ww-tipBtn-primary ww-tipBtn-block' id='btnLogIn' title='Log In'>Log In</button> <button class='ww-tipBtn ww-tipBtn-lg ww-tipBtn-secondary ww-tipBtn-block' id='btnSignUp' title='Sign Up'>Sign Up</button></div>";
+
+    var logOutDivs = "<div id='elem-signin' class='ww-form-signin'><div class='ww-form-header'>Logged in as " + userName + "</div><button class='ww-tipBtn ww-tipBtn-lg ww-tipBtn-secondary ww-tipBtn-block' id='btnRdrWeb' title='Goto Tippanee dashboard on the web'>Goto Tippanee</button><button class='ww-tipBtn ww-tipBtn-lg ww-tipBtn-danger ww-tipBtn-block' id='btnLogOut' title='Log Out'>Log Out</button></div>";
+
+    $('#weaver-overlay').toggleClass('woverlay-show woverlay-hide');
+
+    if (userName) {
+        $("#myloginpage").append(logOutDivs);
+        logoutAssist();
+    } else {
+        $("#myloginpage").append(logInDivs);
+        loginAssist();
+    }
+
+    $("#woverlay-close").on("click", function () {
+        $("body").children("#weaver-overlay").remove();
+    });
+
+    if ($("#weaverSrcBar").css("visibility") === 'visible') {
+        $("#wsearch").trigger("click");
+    }
+}
+
+// Function for logout
+function logoutAssist() {
+    $("#btnRdrWeb").on("click", function () {
+        window.open('https://tippaneemessagingserver.firebaseapp.com/');
+    });
+    // Add log out event
+    $("#btnLogOut").on("click", function () {
+        var lgData = {};
+        userName = null;
+        $("body").children("#weaver-overlay").remove();
+        $("#wlogin").toggleClass('wlight wdark');
+        $("#wlogin").attr("title", "Log in / Sign up");
+
+        lgData.md = "btnLogOut";
+        chrome.runtime.sendMessage({ // Send message to background.js
+            type: "checkUserLogin",
+            data: lgData
+        });
+    });
+}
+
+// Function for login
+function loginAssist() {
+    //Getting elements
+    var inputEmail = document.getElementById('inputEmail');
+    var inputPassword = document.getElementById('inputPassword');
+    var mode;
+
+    inputEmail.focus();
+
+    // Login - Signup function
+    function funcLgnSgu(mode) {
+        var email = inputEmail.value;
+        var pass = inputPassword.value;
+        var lgData = {};
+
+        var valEm = validateEmail(email);
+        var valPsLn = String(pass).length >= 8;
+
+        if (valEm === true) { // For valid email
+            if (valPsLn === true) { // For valid password length
+
+                lgData.md = mode;
+                lgData.el = email;
+                lgData.pw = pass;
+
+                chrome.runtime.sendMessage({ // Send message to background.js
+                    type: "checkUserLogin",
+                    data: lgData
+                });
+
+            } else { // For invalid password length
+                inputPassword.focus();
+                $("#invldPsLen").fadeToggle("fast");
+                setTimeout(function () {
+                    $("#invldPsLen").fadeToggle("fast");
+                }, 2000);
+            }
+        } else { // For invalid email
+            inputEmail.focus();
+            $("#invldEm").fadeToggle("fast");
+            setTimeout(function () {
+                $("#invldEm").fadeToggle("fast");
+            }, 2000);
+        }
+    }
+
+    inputEmail.addEventListener('keydown', function (e) {
+        if (!e) e = window.event;
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13') {
+            inputPassword.focus();
+        }
+    }, false);
+
+    inputPassword.addEventListener('keydown', function (e) {
+        if (!e) e = window.event;
+        var keyCode = e.keyCode || e.which;
+        if (keyCode == '13') {
+            mode = "btnLogIn";
+            funcLgnSgu(mode);
+        }
+    }, false);
+
+    // Add login event
+    $("#btnLogIn").on("click", function () {
+        mode = "btnLogIn";
+        funcLgnSgu(mode);
+    });
+
+    // Add signup event
+    $("#btnSignUp").on("click", function () {
+        mode = "btnSignUp";
+        funcLgnSgu(mode);
+    });
+
+    // Validate email format
+    function validateEmail(email) {
+        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return re.test(email);
+    }
+}
+
 // Highlights Anchor
 function highlightAnchor(helem, hnotekey) {
     var anr = allnotes[hnotekey].anchor;
@@ -972,7 +1312,27 @@ function renderNewNote(elem) {
     $("#" + notekey + ".note-dom").append($.templates.weaverNote.render(note));
 
     allnotes[notekey] = note;
-    storeData(notekey, note);
+    if (userName !== null) {
+        setServerAnno(notekey, note, "Private");
+        var wcPrnt = $("#" + notekey + ".note-dom").children(".weaver-container");
+        var ddChld = document.createElement('div');
+        ddChld.id = "share-dd";
+        ddChld.classList.add("weaver-dd-options");
+        var inrHtml = "";
+        inrHtml = inrHtml.concat("<select id='share-dd-select'><option value='Private'>Private</option>");
+        grpLst.forEach(function (val) {
+            inrHtml = inrHtml.concat("<option value='", val, "'>", val, "</option>");
+        });
+        inrHtml = inrHtml.concat("</select>");
+        ddChld.innerHTML = inrHtml;
+        wcPrnt.append(ddChld);
+
+        var slWt = allnotes[notekey].sharedwith;
+        var stWtStr = "#share-dd-select option[value='" + slWt + "']";
+        $("#" + notekey + ".note-dom").children(".weaver-container").find(stWtStr).attr('selected', 'selected');
+    } else {
+        setLocalAnno(notekey, note);
+    }
 
     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-new-comments").focus();
     $("#" + notekey + ".note-dom").children(".weaver-container").children(".weaver-anno").css("cursor", "pointer");
@@ -998,6 +1358,8 @@ function renderNewNote(elem) {
     $(document).on("click", "#eraser", eraser);
     // Keyup event for weaver comment
     $(document).off("keyup").on("keyup", ".weaver-new-comments", newComment);
+    // Change event for dropdown
+    $(document).on("change", "#share-dd-select", changeAnnoGrp);
 
     calcAnnCntOnPg();
 }
@@ -1056,13 +1418,25 @@ function descriptor(event) {
 
                 allnotes[notekey].description[input[0].placeholder] = input[0].value;
             });
-            $.when(storeData(notekey, allnotes[notekey])).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+
+            if (userName !== null) {
+                $.when(setServerAnno(notekey, allnotes[notekey], allnotes[notekey].sharedwith)).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+            } else {
+                $.when(setLocalAnno(notekey, allnotes[notekey])).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+            }
+
         }
 
         function desclear(event) {
             var notekey = $($(this).offsetParent()).offsetParent().attr("id");
             allnotes[notekey].description = {};
-            $.when(storeData(notekey, allnotes[notekey])).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+
+            if (userName !== null) {
+                $.when(setServerAnno(notekey, allnotes[notekey], allnotes[notekey].sharedwith)).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+            } else {
+                $.when(setLocalAnno(notekey, allnotes[notekey])).then($("#" + notekey + ".note-dom").find(".old-description").text(JSON.stringify(allnotes[notekey].description)));
+            }
+
         }
 
     } else {
@@ -1220,7 +1594,7 @@ function glower(event) {
                 try {
                     chNod = ifNod.document.childNodes;
                 } catch (e) {
-                    console.log(e);
+                    //console.log(e);
                 }
             }
 
@@ -1352,7 +1726,7 @@ function linker(event) {
 
     $(this).toggleClass("active");
     if ($(this).hasClass("active")) {
-        var $linkerContainer = $("<div class='linker-container'> <div class='weaver-header'>Link Note</div> <div id='linkerSrcTool'><textarea id='linkerSrcBar' placeholder='Search'></textarea><div id='clrLSrcBar' class='ww ww-times lbutton' title='Clear Search'></div></div> </div>");
+        var $linkerContainer = $("<div class='linker-container'> <div class='weaver-header'>Link Annotation</div> <div id='linkerSrcTool'><textarea id='linkerSrcBar' placeholder='Search'></textarea><div id='clrLSrcBar' class='ww ww-times lbutton' title='Clear Search'></div></div> </div>");
         $("#" + notekey + ".note-dom").append($($linkerContainer));
 
         if (Object.keys(allnotes).length <= 1) {
@@ -1363,15 +1737,30 @@ function linker(event) {
             $.each(allnotes, function (key) {
                 if (notekey !== key) {
                     //alert(key);
-                    if (allnotes[notekey].links.indexOf(key) === -1) {
+                    var linksExist = false;
+                    if (allnotes[notekey].links) {
+                        linksExist = true;
+                    } else {
+                        linksExist = false;
+                    }
+
+                    if (linksExist) {
+                        if (allnotes[notekey].links.indexOf(key) === -1) {
+                            $("#" + notekey + ".note-dom").find(".linker-content").append("<div id=" + key + " class='linker-links'></div>");
+                            $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").append($.templates.weaverLink.render(allnotes[key]));
+                            $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").children(".weaver-options").append("<div id='link-up' class='linker-button ww ww-link' title='Add Link'></div>");
+                        } else {
+                            $("#" + notekey + ".note-dom").find(".linker-content").prepend("<div id=" + key + " class='linker-links'></div>");
+                            $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").append($.templates.weaverLink.render(allnotes[key]));
+                            $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").children(".weaver-options").append("<div id='link-up' class='linker-button ww ww-chain-broken' title='Remove Link'></div>");
+                        }
+                    } else {
                         $("#" + notekey + ".note-dom").find(".linker-content").append("<div id=" + key + " class='linker-links'></div>");
                         $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").append($.templates.weaverLink.render(allnotes[key]));
                         $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").children(".weaver-options").append("<div id='link-up' class='linker-button ww ww-link' title='Add Link'></div>");
-                    } else {
-                        $("#" + notekey + ".note-dom").find(".linker-content").prepend("<div id=" + key + " class='linker-links'></div>");
-                        $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").append($.templates.weaverLink.render(allnotes[key]));
-                        $("#" + notekey + ".note-dom").find("#" + key + ".linker-links").children(".weaver-options").append("<div id='link-up' class='linker-button ww ww-chain-broken' title='Remove Link'></div>");
                     }
+
+
                 }
             });
         }
@@ -1428,30 +1817,63 @@ function transcludor(event) {
     var notekey = $($(this).offsetParent()).offsetParent().attr("id");
 
     $(this).toggleClass("active");
-    if ($(this).hasClass("active")) {
-        var $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>Transclude Note</div><div id='transcludorTool'><div id='transView' class='ww ww-eye tbutton' title='View/Hide Transclusion' style='float:left!important'></div><div id='transRem' class='ww ww-minus tbutton' title='Remove Transclusion' style='float:right!important'></div><div id='transAdd' class='ww ww-plus tbutton' title='Add Transclusion' style='float:right!important'></div></div></div>");
-        $("#" + notekey + ".note-dom").append($($transcludorContainer));
+    var key, transkey, $transcludorContainer;
+    if (userName === null || allnotes[notekey].owner === userName) {
+        if ($(this).hasClass("active")) {
+            $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>Transclude Annotation</div><div id='transcludorTool'><div id='transView' class='ww ww-eye tbutton' title='View/Hide Transclusion' style='float:left!important'></div><div id='transRem' class='ww ww-minus tbutton' title='Remove Transclusion' style='float:right!important'></div><div id='transAdd' class='ww ww-plus tbutton' title='Add Transclusion' style='float:right!important'></div></div></div>");
+            $("#" + notekey + ".note-dom").append($($transcludorContainer));
 
-        if (allnotes[notekey].transclusion) {
-            var key = allnotes[notekey].transclusion;
-            $("#" + notekey + ".note-dom").children(".transcludor-container").append("<div class='transcluded-content'></div>");
-            $("#" + notekey + ".note-dom").find(".transcluded-content").append("<div id=" + key + " class='transcludor-links'></div>");
-            $("#" + notekey + ".note-dom").find(".transcluded-content").children("#" + key + ".transcludor-links").append($.templates.weaverLink.render(allnotes[key]));
+            if (allnotes[notekey].transclusion) {
+                key = allnotes[notekey].transclusion;
+                $("#" + notekey + ".note-dom").children(".transcludor-container").append("<div class='transcluded-content'></div>");
+                $("#" + notekey + ".note-dom").find(".transcluded-content").append("<div id=" + key + " class='transcludor-links'></div>");
+                $("#" + notekey + ".note-dom").find(".transcluded-content").children("#" + key + ".transcludor-links").append($.templates.weaverLink.render(allnotes[key]));
 
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transView").css('visibility', 'visible');
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transAdd").css('visibility', 'hidden');
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transRem").css('visibility', 'visible');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transView").css('visibility', 'visible');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transAdd").css('visibility', 'hidden');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transRem").css('visibility', 'visible');
+            } else {
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transView").css('visibility', 'hidden');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transAdd").css('visibility', 'visible');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transRem").css('visibility', 'hidden');
+            }
+
         } else {
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transView").css('visibility', 'hidden');
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transAdd").css('visibility', 'visible');
-            $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transRem").css('visibility', 'hidden');
+            transkey = $(this).offsetParent().siblings(".transcludor-container").find(".transcludor-links").attr("id");
+            $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
+
+            $(this).offsetParent().siblings(".transcludor-container").remove();
         }
-
     } else {
-        var transkey = $(this).offsetParent().siblings(".transcludor-container").find(".transcludor-links").attr("id");
-        $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
+        if ($(this).hasClass("active")) {
+            if (allnotes[notekey].transclusion && allnotes[allnotes[notekey].transclusion]) {
+                key = allnotes[notekey].transclusion;
+                $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>Transclude Annotation</div><div id='transcludorTool'><div id='transView' class='ww ww-eye tbutton' title='View/Hide Transclusion' style='float:left!important'></div><div id='transRem' class='ww ww-minus tbutton' title='Remove Transclusion' style='float:right!important'></div><div id='transAdd' class='ww ww-plus tbutton' title='Add Transclusion' style='float:right!important'></div></div></div>");
 
-        $(this).offsetParent().siblings(".transcludor-container").remove();
+                $("#" + notekey + ".note-dom").append($($transcludorContainer));
+
+                $("#" + notekey + ".note-dom").children(".transcludor-container").append("<div class='transcluded-content'></div>");
+                $("#" + notekey + ".note-dom").find(".transcluded-content").append("<div id=" + key + " class='transcludor-links'></div>");
+                $("#" + notekey + ".note-dom").find(".transcluded-content").children("#" + key + ".transcludor-links").append($.templates.weaverLink.render(allnotes[key]));
+
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transView").css('visibility', 'visible');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transAdd").css('visibility', 'hidden');
+                $("#" + notekey + ".note-dom").children(".transcludor-container").find("#transRem").css('visibility', 'hidden');
+            } else {
+                $transcludorContainer = $("<div class='transcludor-container'><div class='weaver-header'>No transclusions to show</div></div>");
+
+                $("#" + notekey + ".note-dom").append($($transcludorContainer));
+            }
+        } else {
+            if (allnotes[notekey].transclusion) {
+                key = allnotes[notekey].transclusion;
+                if (allnotes[key]) {
+                    transkey = $(this).offsetParent().siblings(".transcludor-container").find(".transcludor-links").attr("id");
+                    $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
+                }
+            }
+            $(this).offsetParent().siblings(".transcludor-container").remove();
+        }
     }
 
     $(document).on("click", "#transAdd", showTransList);
@@ -1477,7 +1899,7 @@ function showTransList(event) {
                     //alert(key);
                     $("#" + notekey + ".note-dom").find(".transcludor-content").prepend("<div id=" + key + " class='transcludor-links'></div>");
                     $("#" + notekey + ".note-dom").find("#" + key + ".transcludor-links").append($.templates.weaverLink.render(allnotes[key]));
-                    $("#" + notekey + ".note-dom").find("#" + key + ".transcludor-links").children(".weaver-options").append("<div id='trans-up' class='linker-button ww ww-plus' title='Transclude Note'></div>");
+                    $("#" + notekey + ".note-dom").find("#" + key + ".transcludor-links").children(".weaver-options").append("<div id='trans-up' class='linker-button ww ww-plus' title='Transclude Annotation'></div>");
                 }
             });
         }
@@ -1525,7 +1947,12 @@ function addTrans(event) {
 
     allnotes[notekey].transclusion = transkey;
     var note = allnotes[notekey];
-    storeData(notekey, note);
+
+    if (userName !== null) {
+        setServerAnno(notekey, note, note.sharedwith);
+    } else {
+        setLocalAnno(notekey, note);
+    }
 
     $($(this).offsetParent()).offsetParent().append("<div class='transcluded-content'></div>");
 
@@ -1548,7 +1975,12 @@ function removeTrans(event) {
 
     delete allnotes[notekey].transclusion;
     var note = allnotes[notekey];
-    storeData(notekey, note);
+
+    if (userName !== null) {
+        setServerAnno(notekey, note, note.sharedwith);
+    } else {
+        setLocalAnno(notekey, note);
+    }
 
     $($(this).parent()).siblings(".transcluded-content").remove();
 
@@ -1677,7 +2109,12 @@ function deleter(event) {
     } else {
         delete oNotesonpage[notekey];
     }
-    removeData(notekey);
+    if (userName !== null) {
+        removeServerAnno(notekey, allnotes[notekey].sharedwith);
+    } else {
+        removeLocalAnno(notekey);
+    }
+
 
     if (elem) {
         elem.classList.forEach(function (dat, indx) {
@@ -1712,7 +2149,7 @@ function eraser(event) {
     var commentkey = $(this).parent().attr("id");
 
     delete allnotes[notekey].oldnotes[commentkey];
-    $.when(delete note.oldnotes[commentkey]).then(storeData(notekey, note));
+    $.when(delete note.oldnotes[commentkey]).then(setLocalAnno(notekey, note));
 
     if (Object.keys(allnotes[notekey].oldnotes).length === 0) {
         $($(this).parent()).parent().css("display", "none");
@@ -1727,13 +2164,28 @@ function newComment(event) {
         // event.stopImmediatePropagation();
 
         var notekey = $($(this).parent()).parent().attr("id");
-        var note = allnotes[notekey];
+        var anNote = allnotes[notekey];
         var ts = moment().format();
 
-        allnotes[notekey].oldnotes[ts] = $(this).val();
-        $.when(note.oldnotes[ts] = $(this).val()).then(storeData(notekey, note));
+        if (userName !== null) {
+            if (!allnotes[notekey].oldnotes) {
+                allnotes[notekey].oldnotes = {};
+            }
+            allnotes[notekey].oldnotes[ts] = {};
+            allnotes[notekey].oldnotes[ts].addedby = userName;
+            allnotes[notekey].oldnotes[ts].note = $(this).val();
+            $.when(anNote.oldnotes[ts].note = $(this).val()).then(setServerAnno(notekey, anNote, anNote.sharedwith));
+        } else {
+            if (!allnotes[notekey].oldnotes) {
+                allnotes[notekey].oldnotes = {};
+            }
+            allnotes[notekey].oldnotes[ts] = {};
+            allnotes[notekey].oldnotes[ts].addedby = userName;
+            allnotes[notekey].oldnotes[ts].note = $(this).val();
+            $.when(anNote.oldnotes[ts].note = $(this).val()).then(setLocalAnno(notekey, anNote));
+        }
 
-        var $commentDOM = $("<div id='" + ts + "' class='nhtext'>" + note.oldnotes[ts] + "<br><i style='font-size: 8px;'>" + moment(ts).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
+        var $commentDOM = $("<div id='" + ts + "' class='nhtext'>" + anNote.oldnotes[ts].note + "<br><br><i style='font-size: 8px;'>" + moment(ts).format('lll') + "</i>" + "<b id='eraser' class='ww ww-times' aria-hidden='true' title='Delete Comment'></b> </div>");
         $(this).prev(".weaver-old-comments").css("display", "inline-block").append($commentDOM);
         $(this).val(null);
     }
@@ -1745,11 +2197,32 @@ function linkUp(event) {
     var tempkey = $(this).offsetParent().offsetParent().offsetParent().attr("id");
     var tempnote = allnotes[tempkey];
     var templink = $(this).offsetParent().attr("id");
+    var j;
+    var linkExists = false;
     if ($(this).hasClass("ww-link")) {
-        $.when(tempnote.links.push(templink)).then(storeData(tempkey, tempnote));
+        if (userName !== null) {
+            if (tempnote.links) {
+                linkExists = true;
+            } else {
+                linkExists = false;
+            }
+            if (!linkExists) {
+                tempnote.links = [];
+            }
+            $.when(tempnote.links.push(templink)).then(setServerAnno(tempkey, tempnote, tempnote.sharedwith));
+
+        } else {
+            $.when(tempnote.links.push(templink)).then(setLocalAnno(tempkey, tempnote));
+        }
     } else {
-        var j = tempnote.links.indexOf(templink);
-        $.when(tempnote.links.splice(j, 1)).then(storeData(tempkey, tempnote));
+        if (userName !== null) {
+            j = tempnote.links.indexOf(templink);
+            $.when(tempnote.links.splice(j, 1)).then(setServerAnno(tempkey, tempnote, tempnote.sharedwith));
+        } else {
+            j = tempnote.links.indexOf(templink);
+            $.when(tempnote.links.splice(j, 1)).then(setLocalAnno(tempkey, tempnote));
+        }
+
     }
     $(this).toggleClass('ww-link ww-chain-broken');
     if ($(this).hasClass('ww-link')) {
@@ -1757,6 +2230,17 @@ function linkUp(event) {
     } else {
         $(this).attr('title', 'Remove Link');
     }
+}
+
+// Function for Changing Anno Group
+function changeAnnoGrp(event) {
+    event.stopImmediatePropagation();
+    var tempkey = $(this).offsetParent().parent().attr("id");
+    var tempnote = allnotes[tempkey];
+    var oldgrp = allnotes[tempkey].sharedwith;
+    var newgrp = this.value;
+    allnotes[tempkey].sharedwith = newgrp;
+    setServerAnnoGrpChng(tempkey, tempnote, oldgrp, newgrp);
 }
 
 
@@ -1775,6 +2259,11 @@ function createNewNote() {
     note.oldnotes = {};
     note.links = [];
     note.description = {};
+
+    if (userName !== null) {
+        note.sharedwith = "Private";
+        note.owner = userName;
+    }
     return note;
 }
 
@@ -1887,7 +2376,7 @@ function elemJSON(node, wselectedanchor) {
                 try {
                     childNodes = iframeNodes.document.childNodes;
                 } catch (e) {
-                    console.log(e);
+                    //console.log(e);
                 }
 
             }
@@ -1906,12 +2395,11 @@ function elemJSON(node, wselectedanchor) {
 }
 
 
-// Stograge Functions/////////////////////////////////////////////////////////////////////////////
-// Store Data
-function storeData(key, jsonData, callback) {
+// Local Stograge Functions///////////////////////////////////////////////////////////////////////
+// Set Local Data
+function setLocalAnno(key, jsonData, callback) {
     var storeObj = {};
     storeObj[key] = jsonData;
-
     if (callback && typeof callback === "function") {
         chrome.storage.local.set(storeObj, callback);
     } else {
@@ -1919,16 +2407,67 @@ function storeData(key, jsonData, callback) {
     }
 }
 
-// Get Data
-function getData(key, callback) {
+// Get Local Data
+function getLocalAnno(key, callback) {
     if (!callback || typeof callback !== "function")
-        console.error("Please provide callback before calling getData method.");
+        console.error("Please provide callback before calling getLocalAnno method.");
     else
         chrome.storage.local.get(key, callback);
 }
 
-// Remove Data
-function removeData(key) {
+// Remove Local Data
+function removeLocalAnno(key) {
     chrome.storage.local.remove(key);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Server Stograge Functions//////////////////////////////////////////////////////////////////////
+// Set Server Data
+function getServerAnno(callback) {
+    var lgData = {};
+    lgData.msg = "getData";
+    chrome.runtime.sendMessage({ // Send message to background.js
+        type: "checkServerData",
+        data: lgData
+    });
+    callback();
+}
+
+// Store Server Data
+function setServerAnno(key, annoData, shrdWth) {
+    var lgData = {};
+    lgData.msg = "setData";
+    lgData.key = key;
+    lgData.val = annoData;
+    lgData.shrdWth = shrdWth;
+    chrome.runtime.sendMessage({ // Send message to background.js
+        type: "checkServerData",
+        data: lgData
+    });
+}
+
+// Store Server Data
+function removeServerAnno(key, shrdWth) {
+    var lgData = {};
+    lgData.msg = "remData";
+    lgData.key = key;
+    lgData.shrdWth = shrdWth;
+    chrome.runtime.sendMessage({ // Send message to background.js
+        type: "checkServerData",
+        data: lgData
+    });
+}
+
+function setServerAnnoGrpChng(tempkey, tempnote, oldgrp, newgrp) {
+    var lgData = {};
+    lgData.msg = "chngAnnoGrp";
+    lgData.key = tempkey;
+    lgData.val = tempnote;
+    lgData.oldgrp = oldgrp;
+    lgData.newgrp = newgrp;
+    chrome.runtime.sendMessage({ // Send message to background.js
+        type: "checkServerData",
+        data: lgData
+    });
+}

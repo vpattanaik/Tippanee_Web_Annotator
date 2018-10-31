@@ -225,7 +225,7 @@ NavigationCollector.prototype = {
   onCommittedListener_: function (data) {
     var id = this.parseId_(data);
     if (!this.pending_[id]) {
-      console.log(chrome.i18n.getMessage('errorCommittedWithoutPending'), data.url, data);
+      //console.log(chrome.i18n.getMessage('errorCommittedWithoutPending'), data.url, data);
     } else {
       this.prepareDataStorage_(id, data.url);
       this.pending_[id].transitionType = data.transitionType;
@@ -310,7 +310,7 @@ NavigationCollector.prototype = {
   onCompletedListener_: function (data) {
     var id = this.parseId_(data);
     if (!this.pending_[id]) {
-      console.log(chrome.i18n.getMessage('errorCompletedWithoutPending'), data.url, data);
+      //console.log(chrome.i18n.getMessage('errorCompletedWithoutPending'), data.url, data);
     } else {
       this.completed_[data.url].push({
         duration: (data.timeStamp - this.pending_[id].start),
@@ -335,7 +335,7 @@ NavigationCollector.prototype = {
   onErrorOccurredListener_: function (data) {
     var id = this.parseId_(data);
     if (!this.pending_[id]) {
-      console.log(chrome.i18n.getMessage('errorErrorOccurredWithoutPending'), data.url, data);
+      //console.log(chrome.i18n.getMessage('errorErrorOccurredWithoutPending'), data.url, data);
     } else {
       this.prepareDataStorage_(id, data.url);
       this.errored_[data.url].push({
