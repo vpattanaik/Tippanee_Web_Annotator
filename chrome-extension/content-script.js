@@ -184,7 +184,7 @@ function renderTippFunc() {
                 }
             }
             //console.log("Getting annotation data from local");
-            //console.log("Available Notes:" + Object.keys(allnotes).length);
+            console.log("Available Notes:" + Object.keys(allnotes).length);//////////////////////////////////////////////////////////////
             // Adds Tippanee bubble into webpage DOM 'THEN'
             // Adds Tippanee dash into webpage DOM
             addTippDoms();
@@ -553,7 +553,7 @@ function renderOldNotes() {
 
             startMatching();
 
-            //var strvarKey = "EvaluationData--" + key.toString();
+            var strvarKey = "EvaluationData--" + key.toString();
             var strvarData = {};
 
             if (mat[wpgIdx] !== anrlen || mis[wpgIdx] !== 0) {
@@ -592,7 +592,7 @@ function renderOldNotes() {
                 genstrSimIdx('typStr');
             }
 
-            //setLocalAnno(strvarKey, strvarData);
+            setLocalAnno(strvarKey, strvarData);
 
             var note = allnotes[key];
             var notekey = key;
@@ -1370,7 +1370,7 @@ function descriptor(event) {
     $(this).toggleClass("active");
     // $(this).next(".weaver-container").toggle(500);
     if ($(this).hasClass("active")) {
-        var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+        var notekey = $(this).closest(".note-dom").attr("id");
 
         $("#" + notekey + ".note-dom").append($.templates.descriptorContainer.render());
 
@@ -1405,7 +1405,7 @@ function descriptor(event) {
         $("#" + notekey + ".note-dom").on("click", "#desclear", desclear);
 
         function desadd(event) {
-            var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+            var notekey = $(this).closest(".note-dom").attr("id");
             allnotes[notekey].description = {};
             allnotes[notekey].description['@context'] = "http://schema.org";
 
@@ -1428,7 +1428,7 @@ function descriptor(event) {
         }
 
         function desclear(event) {
-            var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+            var notekey = $(this).closest(".note-dom").attr("id");
             allnotes[notekey].description = {};
 
             if (userName !== null) {
@@ -1440,17 +1440,15 @@ function descriptor(event) {
         }
 
     } else {
-        $(this).offsetParent().siblings(".descriptor-container").remove();
+        $(this).closest(".note-dom").children(".descriptor-container").remove();
     }
-
-
 }
 
 // Highlighter function
 function glower(event) {
     event.stopImmediatePropagation();
 
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
     function scrollIntoViewFunction(callback) {
         try {
@@ -1630,7 +1628,7 @@ function reconstructor(event) {
     event.stopImmediatePropagation();
     $(this).toggleClass("active");
 
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
     if ($(this).hasClass("active")) {
         $("body").children("#weaver-overlay").remove();
@@ -1722,7 +1720,7 @@ function reconstructor(event) {
 // Linker function
 function linker(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
     $(this).toggleClass("active");
     if ($(this).hasClass("active")) {
@@ -1765,7 +1763,7 @@ function linker(event) {
             });
         }
     } else {
-        $(this).offsetParent().siblings(".linker-container").remove();
+        $(this).closest(".note-dom").children(".linker-container").remove();
     }
 
     // Event keypress for linker search bar
@@ -1782,7 +1780,7 @@ function linkSrcKyPrs(event) {
     if (event.keyCode === 13) {
         event.preventDefault(); // Prevents 'enter' from being registered
 
-        var crnotekey = $($(this).offsetParent()).offsetParent()[0].id;
+        var crnotekey = $(this).closest(".note-dom").attr("id");
         var srcTxt = $(this)[0].value.toUpperCase();
         var inrTxt = "";
 
@@ -1801,7 +1799,7 @@ function linkSrcKyPrs(event) {
 // Clear Linker Search Bar function
 function linkSrcClrBtn(event) {
     event.stopImmediatePropagation();
-    var crnotekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var crnotekey = $(this).closest(".note-dom").attr("id");
 
     $.each($("#" + crnotekey + ".note-dom").find(".linker-links"), function (index, value) {
         $("#" + crnotekey + ".note-dom").find("#" + value.id + ".linker-links").show();
@@ -1814,7 +1812,7 @@ function linkSrcClrBtn(event) {
 // Transcludor function
 function transcludor(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
     $(this).toggleClass("active");
     var key, transkey, $transcludorContainer;
@@ -1839,10 +1837,10 @@ function transcludor(event) {
             }
 
         } else {
-            transkey = $(this).offsetParent().siblings(".transcludor-container").find(".transcludor-links").attr("id");
+            transkey = $(this).closest(".note-dom").children(".transcludor-container").find(".transcludor-links").attr("id");
             $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
 
-            $(this).offsetParent().siblings(".transcludor-container").remove();
+            $(this).closest(".note-dom").children(".transcludor-container").remove();
         }
     } else {
         if ($(this).hasClass("active")) {
@@ -1868,11 +1866,11 @@ function transcludor(event) {
             if (allnotes[notekey].transclusion) {
                 key = allnotes[notekey].transclusion;
                 if (allnotes[key]) {
-                    transkey = $(this).offsetParent().siblings(".transcludor-container").find(".transcludor-links").attr("id");
+                    transkey = $(this).closest(".note-dom").children(".transcludor-container").find(".transcludor-links").attr("id");
                     $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
                 }
             }
-            $(this).offsetParent().siblings(".transcludor-container").remove();
+            $(this).closest(".note-dom").children(".transcludor-container").remove();
         }
     }
 
@@ -1884,9 +1882,9 @@ function transcludor(event) {
 // Show Transclusion List
 function showTransList(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
-    if (!$(this).parent().siblings("#transcludorSrcTool").length) {
+    if ($(this).closest(".transcludor-container").children("#transcludorSrcTool").length == 0) {
         $("#" + notekey + ".note-dom").children(".transcludor-container").append("<div id='transcludorSrcTool'><textarea id='transcludorSrcBar' placeholder='Search'></textarea><div id='clrTSrcBar' class='ww ww-times lbutton' title='Clear Search'></div></div>");
 
         if (Object.keys(allnotes).length <= 1) {
@@ -1905,8 +1903,8 @@ function showTransList(event) {
         }
 
     } else {
-        $(this).parent().siblings("#transcludorSrcTool").remove();
-        $(this).parent().siblings(".transcludor-content").remove();
+        $(this).closest(".transcludor-container").children("#transcludorSrcTool").remove();
+        $(this).closest(".transcludor-container").children(".transcludor-content").remove();
     }
 
     // Event keypress for transcludor search bar
@@ -1923,7 +1921,7 @@ function tranSrcKyPrs(event) {
     if (event.keyCode === 13) {
         event.preventDefault(); // Prevents 'enter' from being registered
 
-        var transkey = $($(this).offsetParent()).offsetParent()[0].id;
+        var transkey = $(this).closest(".note-dom").attr("id");
         var srcTxt = $(this)[0].value.toUpperCase();
         var inrTxt = "";
 
@@ -1942,8 +1940,8 @@ function tranSrcKyPrs(event) {
 // Add Transclusion
 function addTrans(event) {
     event.stopImmediatePropagation();
-    var transkey = $(this).offsetParent().attr("id");
-    var notekey = $($($(this).offsetParent()).offsetParent()).parent().attr("id");
+    var transkey = $(this).closest(".transcludor-links").attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
 
     allnotes[notekey].transclusion = transkey;
     var note = allnotes[notekey];
@@ -1954,13 +1952,14 @@ function addTrans(event) {
         setLocalAnno(notekey, note);
     }
 
-    $($(this).offsetParent()).offsetParent().append("<div class='transcluded-content'></div>");
+    var prElem = $(this).closest(".transcludor-container");
+    prElem.append("<div class='transcluded-content'></div>");
 
-    $($(this).offsetParent()).offsetParent().children(".transcluded-content").append("<div id=" + transkey + " class='transcludor-links'></div>");
-    $($(this).offsetParent()).offsetParent().children(".transcluded-content").children("#" + transkey + ".transcludor-links").append($.templates.weaverLink.render(allnotes[transkey]));
+    prElem.children(".transcluded-content").append("<div id=" + transkey + " class='transcludor-links'></div>");
+    prElem.children(".transcluded-content").children("#" + transkey + ".transcludor-links").append($.templates.weaverLink.render(allnotes[transkey]));
 
-    $($(this).offsetParent()).offsetParent().children("#transcludorSrcTool").remove();
-    $($(this).offsetParent()).offsetParent().children(".transcludor-content").remove();
+    prElem.children("#transcludorSrcTool").remove();
+    prElem.children(".transcludor-content").remove();
 
     $("#" + notekey + ".note-dom").find("#transView").css('visibility', 'visible');
     $("#" + notekey + ".note-dom").find("#transAdd").css('visibility', 'hidden');
@@ -1970,7 +1969,7 @@ function addTrans(event) {
 // Remove Transclusion
 function removeTrans(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
     var transkey = allnotes[notekey].transclusion;
 
     delete allnotes[notekey].transclusion;
@@ -1982,7 +1981,7 @@ function removeTrans(event) {
         setLocalAnno(notekey, note);
     }
 
-    $($(this).parent()).siblings(".transcluded-content").remove();
+    $(this).closest(".transcludor-container").children(".transcluded-content").remove();
 
     $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
 
@@ -1998,7 +1997,7 @@ function removeTrans(event) {
 // Search Transclusion Search List
 function tranSrcClrBtn(event) {
     event.stopImmediatePropagation();
-    var transkey = $($(this).offsetParent()).offsetParent().attr("id");
+    var transkey = $(this).closest(".note-dom").attr("id");
 
     $.each($("#" + transkey + ".note-dom").find(".transcludor-links"), function (index, value) {
         $("#" + transkey + ".note-dom").find("#" + value.id + ".transcludor-links").show();
@@ -2012,7 +2011,7 @@ function tranSrcClrBtn(event) {
 function viewTrans(event) {
     event.stopImmediatePropagation();
     $(this).toggleClass("active");
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
     var transkey = allnotes[notekey].transclusion;
 
     if ($(this).hasClass("active")) { //$("#" + transkey + ".transcludor-viewer").length === 0     
@@ -2075,8 +2074,8 @@ function loadTransclusion(notekey, transkey) {
 // Hide Transcusion viewer
 function hideTransView(event) {
     event.stopImmediatePropagation();
-    var transkey = $($(this).parent()).parent().attr("id");
-    var notekey = $($(document).find("#" + transkey + ".transcludor-links")).offsetParent().offsetParent().attr("id");
+    var transkey = $(this).closest(".transcludor-viewer").attr("id");
+    var notekey = $("#wanchs").find("#" + transkey + ".transcludor-links").closest(".note-dom").attr("id");
 
     $("." + notekey + ".el-highlight").find("#" + transkey + ".transcludor-viewer").remove();
     $("#" + notekey + ".note-dom").find("#transView").toggleClass("active");
@@ -2085,8 +2084,8 @@ function hideTransView(event) {
 // Refresh Transcusion viewer
 function refreshTransView(event) {
     event.stopImmediatePropagation();
-    var transkey = $($(this).parent()).parent().attr("id");
-    var notekey = $($(document).find("#" + transkey + ".transcludor-links")).offsetParent().offsetParent().attr("id");
+    var transkey = $(this).closest(".transcludor-viewer").attr("id");
+    var notekey = $("#wanchs").find("#" + transkey + ".transcludor-links").closest(".note-dom").attr("id");
 
     loadTransclusion(notekey, transkey);
 }
@@ -2094,7 +2093,7 @@ function refreshTransView(event) {
 // Deleter function
 function deleter(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
     var transkey = allnotes[notekey].transclusion;
 
     var elem = $("." + notekey + ".el-highlight")[0];
@@ -2144,17 +2143,17 @@ function deleter(event) {
 // Eraser function
 function eraser(event) {
     event.stopImmediatePropagation();
-    var notekey = $($(this).offsetParent()).offsetParent().attr("id");
+    var notekey = $(this).closest(".note-dom").attr("id");
     var note = allnotes[notekey];
-    var commentkey = $(this).parent().attr("id");
+    var commentkey = $(this).closest(".nhtext").attr("id");
 
     delete allnotes[notekey].oldnotes[commentkey];
     $.when(delete note.oldnotes[commentkey]).then(setLocalAnno(notekey, note));
 
     if (Object.keys(allnotes[notekey].oldnotes).length === 0) {
-        $($(this).parent()).parent().css("display", "none");
+        $(this).closest(".weaver-old-comments").css("display", "none");
     }
-    $($(this).parent()).remove();
+    $(this).closest(".nhtext").remove();
 }
 
 // Render and store new comment
@@ -2162,8 +2161,7 @@ function newComment(event) {
     event.stopImmediatePropagation();
     if (event.keyCode === 13) {
         // event.stopImmediatePropagation();
-
-        var notekey = $($(this).parent()).parent().attr("id");
+        var notekey = $(this).closest(".note-dom").attr("id");
         var anNote = allnotes[notekey];
         var ts = moment().format();
 
@@ -2194,9 +2192,9 @@ function newComment(event) {
 // Linkup function
 function linkUp(event) {
     event.stopImmediatePropagation();
-    var tempkey = $(this).offsetParent().offsetParent().offsetParent().attr("id");
+    var tempkey = $(this).closest(".note-dom").attr("id");
     var tempnote = allnotes[tempkey];
-    var templink = $(this).offsetParent().attr("id");
+    var templink = $(this).closest(".linker-links").attr("id");
     var j;
     var linkExists = false;
     if ($(this).hasClass("ww-link")) {
@@ -2235,7 +2233,7 @@ function linkUp(event) {
 // Function for Changing Anno Group
 function changeAnnoGrp(event) {
     event.stopImmediatePropagation();
-    var tempkey = $(this).offsetParent().parent().attr("id");
+    var tempkey = $(this).closest(".note-dom").attr("id");
     var tempnote = allnotes[tempkey];
     var oldgrp = allnotes[tempkey].sharedwith;
     var newgrp = this.value;
